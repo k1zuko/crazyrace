@@ -589,7 +589,7 @@ export default function HostRoomPage() {
                   <div className="text-center py-6 sm:py-8 text-gray-400 pixel-text">
                     <Users className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 opacity-50" />
                     <p className="text-sm sm:text-base">
-                      Waiting for players to join...
+                      {t("hostroom.waiting")}
                     </p>
                   </div>
                 ) : (

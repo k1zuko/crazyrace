@@ -376,7 +376,7 @@ export default function QuestionListPage() {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="pixel-border-large inline-block p-6"
+              className="pixel-border-large inline-block p-6 pt-0"
             >
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[#ffefff] pixel-text glow-pink">
                 {t('soal.title')}

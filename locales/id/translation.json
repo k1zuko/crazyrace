@@ -65,6 +65,10 @@
       "title": "Tidak Bisa Masuk",
       "message": "Permainan sudah dimulai atau sudah selesai. Pemain baru tidak bisa bergabung."
     },
+    "roomFull": {
+      "title": "Ruangan Penuh",
+      "message": "Jumlah pemain maksimal sudah tercapai. Silakan coba ruangan lain."
+    },
     "closeButton": "Oke!"
   },
   "menu": {

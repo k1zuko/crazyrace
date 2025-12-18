@@ -364,17 +364,29 @@ export default function HostMonitorPage() {
 
       {/* Scrollable Content Wrapper */}
       <div className="absolute inset-0 overflow-y-auto z-10">
-        {/* Header - Full width, ikut scroll */}
+        {/* Header - Full width, ikut scroll, 3 columns */}
         <div className="w-full px-4 py-4 pb-0 flex items-center justify-between">
-          {/* Left side: Crazy Race logo */}
-          <div className="flex items-center gap-4">
+          {/* Left side: Crazy Race logo (desktop) */}
+          <div className="flex items-center gap-4 flex-1">
             <div className="hidden md:block">
               <Image src="/crazyrace-logo.png" alt="Crazy Race" width={270} height={50} style={{ imageRendering: 'auto' }} className="h-auto drop-shadow-xl" />
             </div>
           </div>
 
+          {/* Center: Mobile logo */}
+          <div className="block md:hidden w-full flex justify-center mx-auto">
+            <Image
+              src="/crazyrace-logo.png"
+              alt="Crazy Race"
+              width={230}
+              height={50}
+              style={{ imageRendering: 'auto' }}
+              className="h-auto drop-shadow-xl"
+            />
+          </div>
+
           {/* Right side: Gameforsmart logo + Mute button */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 flex-1 justify-end">
             <div className="hidden md:block">
               <Image src="/gameforsmartlogo.webp" alt="Logo" width={256} height={64} />
             </div>
@@ -390,10 +402,11 @@ export default function HostMonitorPage() {
           </div>
         </div>
 
-        <div className="relative max-w-7xl mx-auto p-4 sm:p-6 md:p-10 pt-0">
+        <div className="relative max-w-7xl mx-auto p-4 sm:p-6 md:p-10 pt-0 sm:pt-0 md:pt-0">
           <div className="flex flex-col items-center text-center">
+
             <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center pb-4 sm:pb-5">
-              <div className="inline-block py-4 md:pt-10 max-w-[200px] sm:max-w-none">
+              <div className="inline-block py-4 max-w-[200px] sm:max-w-none">
                 <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-[#ffefff] pixel-text glow-pink">{t('monitor.title')}</h1>
               </div>
             </motion.div>

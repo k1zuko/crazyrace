@@ -140,9 +140,10 @@ export default function LoginPage() {
         />
       </h1>
 
-      <div className="absolute top-4 left-10 hidden md:block">
-        <Image src="/crazyrace-logo.png" alt="Crazy Race" width={150} height={50} style={{ imageRendering: 'auto' }} className="h-auto drop-shadow-xl"
-        />
+      <div className="absolute top-4 left-4 hidden md:block">
+        <div className="hidden md:block">
+          <Image src="/crazyrace-logo.png" alt="Crazy Race" width={270} height={50} style={{ imageRendering: 'auto' }} className="h-auto drop-shadow-xl" />
+        </div>
       </div>
 
       {/* Logo & Title - Responsive untuk mobile */}

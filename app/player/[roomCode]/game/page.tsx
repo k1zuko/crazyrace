@@ -467,8 +467,7 @@ export default function QuizGamePage() {
       </AnimatePresence>
       <div className="relative z-10 max-w-7xl mx-auto pt-8 px-4">
         <div className="text-center">
-          <Image src="/crazyrace-logo-utama.png" alt="Crazy Race" width={200} height={80} style={{ imageRendering: 'auto' }} className="block md:hidden h-auto mx-auto drop-shadow-xl" />
-          <Image src="/crazyrace-logo.png" alt="Crazy Race" width={300} height={80} style={{ imageRendering: 'auto' }} className="hidden md:block h-auto mx-auto drop-shadow-xl" />
+          <Image src="/crazyrace-logo-utama.png" alt="Crazy Race" width={200} height={80} style={{ imageRendering: 'auto' }} className="h-auto mx-auto drop-shadow-xl" />
         </div>
         <Card className="bg-[#1a0a2a]/40 border-[#ff6bff]/50 pixel-card my-8 px-4 py-2">
           <CardContent className="px-0">

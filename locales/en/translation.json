@@ -65,6 +65,10 @@
       "title": "Cannot Join",
       "message": "The game has already started or finished. New players cannot join."
     },
+    "roomFull": {
+      "title": "Room is Full",
+      "message": "Maximum number of players reached. Please try another room."
+    },
     "closeButton": "Okay!"
   },
   "menu": {

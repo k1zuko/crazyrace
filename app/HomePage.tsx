@@ -134,6 +134,7 @@ export default function HomePage() {
     | "roomNotFound"
     | "pwaInstallUnavailable"
     | "sessionLocked"
+    | "roomFull"
     | ""
   >("");
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
@@ -373,6 +374,13 @@ export default function HomePage() {
       if (data.error === "session_locked") {
         // status = active / finished, user belum join sebelumnya
         setAlertReason("sessionLocked");
+        setShowAlert(true);
+        setJoining(false);
+        return;
+      }
+
+      if (data.error === "room_full") {
+        setAlertReason("roomFull");
         setShowAlert(true);
         setJoining(false);
         return;
