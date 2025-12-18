@@ -77,7 +77,7 @@ export default function RacingGame() {
       if (retryCount < 3) {
         setTimeout(() => fetchMiniGameData(retryCount + 1), 1000 * (retryCount + 1));
       } else {
-        router.replace(`/join/${roomCode}/game`);
+        router.replace(`/player/${roomCode}/game`);
       }
     }
   }, [roomCode, router]);
@@ -98,7 +98,7 @@ export default function RacingGame() {
       })
       .eq("id", participantId);
 
-    router.push(`/join/${roomCode}/result`);
+    router.push(`/player/${roomCode}/result`);
   };
 
   // Timer logic
@@ -173,7 +173,7 @@ export default function RacingGame() {
           localStorage.removeItem("nextQuestionIndex");
         }
 
-        router.replace(`/join/${roomCode}/game`);
+        router.replace(`/player/${roomCode}/game`);
       } catch (err) {
         console.error("Gagal update racing status:", err);
       }

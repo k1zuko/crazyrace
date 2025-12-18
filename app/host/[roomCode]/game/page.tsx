@@ -16,6 +16,7 @@ import Image from "next/image"
 import { Dialog, DialogContent, DialogOverlay, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { generateXID } from "@/lib/id-generator"
 import { useHostGuard } from "@/lib/host-guard"
+import { t } from "i18next"
 
 const backgroundImage = "/assets/background/host/9.webp"
 
@@ -361,21 +362,39 @@ export default function HostMonitorPage() {
       <audio ref={audioRef} src="/assets/music/racingprogress.mp3" loop preload="auto" className="hidden" />
       <div className="absolute inset-0 w-full h-full bg-cover bg-center" style={{ backgroundImage: `url(${backgroundImage})` }} />
 
-      {/* Semua UI kamu 100% SAMA, cuma data dari mysupa */}
-      <motion.button initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} whileHover={{ scale: 1.05 }} onClick={() => setIsMuted(p => !p)} className={`absolute top-4 right-4 z-40 p-3 border-2 pixel-button rounded-lg shadow-lg min-w-[48px] min-h-[48px] flex items-center justify-center transition-all cursor-pointer ${isMuted ? "bg-[#ff6bff]/30 border-[#ff6bff] glow-pink" : "bg-[#00ffff]/30 border-[#00ffff] glow-cyan"}`}>
-        <span className="filter drop-shadow-[2px_2px_2px_rgba(0,0,0,0.7)]">{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</span>
-      </motion.button>
-
-      <h1 className="absolute top-5 right-20 hidden md:block"><Image src="/gameforsmartlogo.webp" alt="Logo" width={256} height={64} /></h1>
-      <h1 className="absolute top-7 left-10 text-2xl font-bold text-[#00ffff] pixel-text glow-cyan hidden md:block">Crazy Race</h1>
-
       {/* Scrollable Content Wrapper */}
       <div className="absolute inset-0 overflow-y-auto z-10">
-        <div className="relative max-w-7xl mx-auto p-4 sm:p-6 md:p-10">
+        {/* Header - Full width, ikut scroll */}
+        <div className="w-full px-4 py-4 pb-0 flex items-center justify-between">
+          {/* Left side: Crazy Race logo */}
+          <div className="flex items-center gap-4">
+            <div className="hidden md:block">
+              <Image src="/crazyrace-logo.png" alt="Crazy Race" width={270} height={50} style={{ imageRendering: 'auto' }} className="h-auto drop-shadow-xl" />
+            </div>
+          </div>
+
+          {/* Right side: Gameforsmart logo + Mute button */}
+          <div className="flex items-center gap-4">
+            <div className="hidden md:block">
+              <Image src="/gameforsmartlogo.webp" alt="Logo" width={256} height={64} />
+            </div>
+            <motion.button
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={() => setIsMuted(p => !p)}
+              className={`p-3 border-2 pixel-button rounded-lg shadow-lg min-w-[48px] min-h-[48px] flex items-center justify-center transition-all cursor-pointer ${isMuted ? "bg-[#ff6bff]/30 border-[#ff6bff] glow-pink" : "bg-[#00ffff]/30 border-[#00ffff] glow-cyan"}`}
+            >
+              <span className="filter drop-shadow-[2px_2px_2px_rgba(0,0,0,0.7)]">{isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}</span>
+            </motion.button>
+          </div>
+        </div>
+
+        <div className="relative max-w-7xl mx-auto p-4 sm:p-6 md:p-10 pt-0">
           <div className="flex flex-col items-center text-center">
             <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center pb-4 sm:pb-5">
               <div className="inline-block py-4 md:pt-10 max-w-[200px] sm:max-w-none">
-                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-[#ffefff] pixel-text glow-pink">Race Progress</h1>
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-[#ffefff] pixel-text glow-pink">{t('monitor.title')}</h1>
               </div>
             </motion.div>
 
@@ -386,7 +405,7 @@ export default function HostMonitorPage() {
                   <div className={`text-2xl font-bold ${getTimeColor()} pixel-text`}>{formatTime(timeRemaining)}</div>
                 </div>
                 <Button onClick={() => setEndGameConfirmOpen(true)} className="bg-red-500 hover:bg-red-600 pixel-button glow-red flex items-center space-x-2">
-                  <SkipForward className="w-4 h-4" /><span>End Game</span>
+                  <SkipForward className="w-4 h-4" /><span>{t('monitor.endGame')}</span>
                 </Button>
               </div>
             </Card>
@@ -427,7 +446,7 @@ export default function HostMonitorPage() {
               {sortedPlayers.length === 0 && (
                 <div className="text-center py-8 text-gray-400">
                   <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No players in the game yet...</p>
+                  <p>{t('monitor.noPlayers')}</p>
                 </div>
               )}
             </Card>
@@ -438,11 +457,11 @@ export default function HostMonitorPage() {
         <Dialog open={isEndGameConfirmOpen} onOpenChange={setEndGameConfirmOpen}>
           <DialogOverlay className="bg-[#1a0a2a]/60 backdrop-blur-md fixed inset-0 z-50" />
           <DialogContent className="bg-[#1a0a2a]/80 border-2 border-[#ff6bff] pixel-card">
-            <DialogTitle className="text-xl text-[#ffefff] pixel-text glow-pink text-center">End Game</DialogTitle>
-            <DialogDescription className="text-center text-gray-300 pixel-text my-4">Are you sure want to end the game?</DialogDescription>
+            <DialogTitle className="text-xl text-[#ffefff] pixel-text glow-pink text-center">{t('monitor.endGame')}</DialogTitle>
+            <DialogDescription className="text-center text-gray-300 pixel-text my-4">{t('monitor.endGameConfirm')}</DialogDescription>
             <DialogFooter className="flex justify-center gap-4">
-              <Button variant="outline" onClick={() => setEndGameConfirmOpen(false)} className="pixel-button bg-gray-700 hover:bg-gray-600">Cancel</Button>
-              <Button onClick={handleEndGame} className="pixel-button bg-red-600 hover:bg-red-500 glow-red">Confirm</Button>
+              <Button variant="outline" onClick={() => setEndGameConfirmOpen(false)} className="pixel-button bg-gray-700 hover:bg-gray-600">{t('monitor.cancel')}</Button>
+              <Button onClick={handleEndGame} className="pixel-button bg-red-600 hover:bg-red-500 glow-red">{t('monitor.confirm')}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

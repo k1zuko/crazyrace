@@ -176,11 +176,22 @@ export default function PlayerResultsPage() {
         />
       </h1>
 
-      <h1 className="absolute top-7 left-10 text-2xl font-bold text-[#00ffff] pixel-text glow-cyan hidden md:block">
-        Crazy Race
-      </h1>
+      <div className="absolute top-4 left-4 hidden md:block">
+        <Image src="/crazyrace-logo.png" alt="Crazy Race" width={270} height={50} style={{ imageRendering: 'auto' }} className="h-auto drop-shadow-xl" />
+      </div>
 
       <div className="relative z-10 max-w-4xl mx-auto p-4">
+        {/* <div className="block md:hidden w-full flex justify-center mx-auto">
+          <Image
+            src="/crazyrace-logo-utama.png"
+            alt="Crazy Race"
+            width={150}
+            height={50}
+            style={{ imageRendering: 'auto' }}
+            className="h-auto drop-shadow-xl"
+          />
+        </div> */}
+
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}

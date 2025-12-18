@@ -334,13 +334,13 @@ export default function HostLeaderboardPage() {
         </AnimatePresence>
         <div className="relative z-10 max-w-4xl mx-auto p-4 text-center flex items-center justify-center h-screen">
           <Card className="bg-[#1a0a2a]/60 border-[#ff6bff]/50 pixel-card p-6">
-            <h1 className="text-xl font-bold mb-2 text-[#00ffff] pixel-text glow-cyan">Leaderboard not available</h1>
-            <p className="text-[#ff6bff] mb-4 pixel-text">{error || 'No data found'}</p>
+            <h1 className="text-xl font-bold mb-2 text-[#00ffff] pixel-text glow-cyan">{t('resulthost.notAvailable')}</h1>
+            <p className="text-[#ff6bff] mb-4 pixel-text">{error || t('resulthost.noDataFound')}</p>
             <Button
               className="bg-[#ff6bff] pixel-button glow-pink"
               onClick={() => router.push('/')}
             >
-              Back to Home
+              {t('resulthost.backToHome')}
             </Button>
           </Card>
         </div>
@@ -367,23 +367,37 @@ export default function HostLeaderboardPage() {
         />
       </AnimatePresence>
 
-      <h1 className="absolute top-5 right-10 hidden md:block">
-        <Image
-          src="/gameforsmartlogo.webp"
-          alt="Gameforsmart Logo"
-          width={256}
-          height={64}
-        />
-      </h1>
-
-      <h1 className="absolute top-7 left-10 text-2xl font-bold text-[#00ffff] pixel-text glow-cyan hidden md:block">
-        Crazy Race
-      </h1>
-
       {/* Scrollable Content Wrapper */}
       <div className="absolute inset-0 overflow-y-auto z-10">
-        <div className="relative max-w-5xl mx-auto p-4 pb-20 md:pb-0">
-          <div className="text-center py-4 md:pt-14">
+        {/* Header - Full width, ikut scroll */}
+        <div className="w-full px-4 py-4 pb-0 flex items-center justify-between">
+          {/* Left side: Crazy Race logo */}
+          <div className="flex items-center gap-4">
+            <div className="hidden md:block">
+              <Image src="/crazyrace-logo.png" alt="Crazy Race" width={270} height={50} style={{ imageRendering: 'auto' }} className="h-auto drop-shadow-xl" />
+            </div>
+          </div>
+
+          {/* Right side: Gameforsmart logo */}
+          <div className="hidden md:block">
+            <Image src="/gameforsmartlogo.webp" alt="Gameforsmart Logo" width={256} height={64} />
+          </div>
+        </div>
+
+        <div className="relative max-w-5xl mx-auto p-4 pb-20 md:pb-0 pt-0">
+
+          <div className="block md:hidden w-full flex justify-center mx-auto">
+            <Image
+              src="/crazyrace-logo-utama.png"
+              alt="Crazy Race"
+              width={200}
+              height={50}
+              style={{ imageRendering: 'auto' }}
+              className="h-auto drop-shadow-xl"
+            />
+          </div>
+
+          <div className="text-center py-4">
             <motion.h1
               className="text-4xl md:text-5xl font-bold text-[#00ffff] pixel-text glow-cyan tracking-wider animate-neon-glow"
               initial={{ opacity: 0, y: -20 }}
@@ -564,7 +578,7 @@ export default function HostLeaderboardPage() {
               onClick={() => router.push('/')}
               className="bg-[#1a0a2a]/70 border border-[#00ffff] rounded-lg text-[#00ffff] px-4 py-2 text-sm hover:bg-[#00ffff]/20 transition-all duration-300"
             >
-              HOME
+              {t('resulthost.home')}
             </button>
 
             {/* Tombol Restart */}
@@ -572,7 +586,7 @@ export default function HostLeaderboardPage() {
               onClick={restartGame}
               className="bg-[#ff6bff] border border-white rounded-lg text-white px-4 py-2 text-sm hover:bg-[#ff8aff]/80 transition-all duration-300"
             >
-              RESTART
+              {t('resulthost.restart')}
             </button>
           </div>
 

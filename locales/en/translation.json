@@ -136,6 +136,10 @@
       "en": "English",
       "id": "Bahasa Indonesia"
     },
+    "loadingSession": "Loading session or session not found...",
+    "unknownQuiz": "Unknown Quiz",
+    "noDescription": "No description available",
+    "minutes": "Minutes",
     "deleteSession": {
       "title": "Delete Session?",
       "description": "This action will delete the session.",
@@ -187,12 +191,25 @@
     }
   },
   "monitor":{
-  "title" : "Race Progrress",
-  "button": "End Race"
-
+    "title": "Race Progress",
+    "button": "End Race",
+    "endGame": "End Game",
+    "endGameConfirm": "Are you sure you want to end the game?",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "noPlayers": "No players in the game yet..."
   },
-    "resulthost":{
-    "title": "Leaderboard"
+  "resulthost":{
+    "title": "Leaderboard",
+    "notAvailable": "Leaderboard not available",
+    "noDataFound": "No data found",
+    "backToHome": "Back to Home",
+    "home": "HOME",
+    "restart": "RESTART",
+    "noFinished": "No players finished yet",
+    "sessionNotFound": "Session not found",
+    "failedLoad": "Failed to load leaderboard",
+    "restartFailed": "Failed to restart game"
   },
   "joinresult":{
     "title": "Result",

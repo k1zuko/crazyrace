@@ -66,10 +66,8 @@ function LogoutDialog({
 
   const handleLogout = async () => {
     setLoading(true);
-      
     await supabase.auth.signOut();
     localStorage.clear();
-
     window.location.replace("/login");
     onOpenChange(false);
   };
@@ -385,7 +383,7 @@ export default function HomePage() {
       localStorage.setItem("participantId", data.participant_id);
       localStorage.setItem("game_pin", roomCode);
 
-      router.push(`/join/${roomCode}`);
+      router.push(`/player/${roomCode}/lobby`);
 
     } catch (error: any) {
       console.error("❌ Join error:", error);
@@ -812,15 +810,8 @@ export default function HomePage() {
         )}
       </AnimatePresence>
       <div className="relative z-10 flex flex-col items-center justify-center h-full w-full">
-        <div className="text-center relative pb-5 sm:pt-3 pt-16 space-y-3">
-          <div className="pixel-border-large mx-auto relative z-0">
-            <h1 className="font-bold bg-clip-text text-3xl md:text-5xl lg:text-6xl font-bold md:mb-2 text-transparent bg-clip-text bg-gradient-to-r from-[#ff6bff] to-[#00ffff] tracking-wider drop-shadow-[0_0_4px_rgba(139,92,246,0.6)]">
-              {t("mainTitle.title1")}
-            </h1>
-            <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#ff6bff] to-[#00ffff] relative z-10">
-              {t("mainTitle.title2")}
-            </h2>
-          </div>
+        <div className="text-center relative pb-5 sm:pt-3 pt-16 space-y-3 flex flex-col items-center">
+          <Image src="/crazyrace-logo-utama.png" alt="Crazy Race Logo" width={400} height={400} style={{ imageRendering: 'auto' }} className="w-[250px] sm:w-[300px] md:w-[350px] lg:w-[400px] h-auto mx-auto drop-shadow-xl" />
           <div
             className="pixel-border-small inline-block"
             style={{

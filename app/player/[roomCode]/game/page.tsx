@@ -11,6 +11,7 @@ import LoadingRetro from "@/components/loadingRetro"
 import { formatTime } from "@/utils/game"
 import { syncServerTime, getSyncedServerTime } from "@/utils/serverTime"
 import { generateXID } from "@/lib/id-generator"
+import Image from "next/image"
 
 // Background GIFs
 const backgroundGifs = [
@@ -104,7 +105,7 @@ export default function QuizGamePage() {
           // Cek completion
           const answeredCount = (prefetched.participant?.answers || []).length;
           if (prefetched.participant?.completion || answeredCount >= prefetched.questions.length) {
-            router.replace(`/join/${roomCode}/result`);
+            router.replace(`/player/${roomCode}/result`);
             return;
           }
 
@@ -142,7 +143,7 @@ export default function QuizGamePage() {
           .single();
 
         if (error || !sess || sess.status !== "active") {
-          router.replace(`/join/${roomCode}`);
+          router.replace(`/player/${roomCode}/lobby`);
           return;
         }
 
@@ -157,7 +158,7 @@ export default function QuizGamePage() {
           const answeredCount = (participant.answers || []).length;
 
           if (participant.completion || answeredCount >= parsedQuestions.length) {
-            router.replace(`/join/${roomCode}/result`);
+            router.replace(`/player/${roomCode}/result`);
             return;
           }
 
@@ -180,7 +181,7 @@ export default function QuizGamePage() {
         .single();
 
       if (error || !sess || sess.status !== "active") {
-        router.replace(`/join/${roomCode}`);
+        router.replace(`/player/${roomCode}/lobby`);
         return;
       }
 
@@ -207,7 +208,7 @@ export default function QuizGamePage() {
         const answeredCount = (participant.answers || []).length;
 
         if (participant.completion || answeredCount >= parsedQuestions.length) {
-          router.replace(`/join/${roomCode}/result`);
+          router.replace(`/player/${roomCode}/result`);
           return;
         }
 
@@ -263,7 +264,7 @@ export default function QuizGamePage() {
     const cachedQuestionsKey = `quizQuestions_${roomCode}`;
     localStorage.removeItem(cachedQuestionsKey);
 
-    router.push(`/join/${roomCode}/result`);
+    router.push(`/player/${roomCode}/result`);
   }, [participantId, roomCode, router, totalQuestions]); // ✅ FIX: Added proper dependencies
 
 
@@ -394,7 +395,7 @@ export default function QuizGamePage() {
       saveProgressAndRedirect();
     } else if (isRacing) {
       localStorage.setItem("nextQuestionIndex", nextIndex.toString());
-      router.push(`/join/${roomCode}/minigame`);
+      router.push(`/player/${roomCode}/minigame`);
     } else {
       setCurrentQuestionIndex(nextIndex);
       setSelectedAnswer(null);
@@ -466,9 +467,8 @@ export default function QuizGamePage() {
       </AnimatePresence>
       <div className="relative z-10 max-w-7xl mx-auto pt-8 px-4">
         <div className="text-center">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-[#00ffff] pixel-text glow-cyan tracking-wider">
-            CRAZY RACE
-          </h1>
+          <Image src="/crazyrace-logo-utama.png" alt="Crazy Race" width={200} height={80} style={{ imageRendering: 'auto' }} className="block md:hidden h-auto mx-auto drop-shadow-xl" />
+          <Image src="/crazyrace-logo.png" alt="Crazy Race" width={300} height={80} style={{ imageRendering: 'auto' }} className="hidden md:block h-auto mx-auto drop-shadow-xl" />
         </div>
         <Card className="bg-[#1a0a2a]/40 border-[#ff6bff]/50 pixel-card my-8 px-4 py-2">
           <CardContent className="px-0">
@@ -490,10 +490,12 @@ export default function QuizGamePage() {
           </CardContent>
         </Card>
         <Card className="bg-[#1a0a2a]/40 border-[#ff6bff]/50 pixel-card">
-          <CardHeader className="text-center">
-            <h2 className="text-lg sm:text-2xl font-bold text-[#00ffff] pixel-text glow-cyan text-balance">
-              {currentQuestion.question}
-            </h2>
+          <CardHeader className="text-center pb-4 px-4">
+            <div className="max-h-[200px] overflow-y-auto"> {/* <-- ini yang penting */}
+              <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-[#00ffff] pixel-text glow-cyan leading-tight text-balance whitespace-pre-wrap break-words px-2">
+                {currentQuestion.question}
+              </h2>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

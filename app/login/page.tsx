@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/authContext"
 import { FcGoogle } from 'react-icons/fc';
+import { FaHandPointRight } from 'react-icons/fa';
 import { useTranslation } from "react-i18next"
 import Image from "next/image"
 
@@ -139,16 +140,23 @@ export default function LoginPage() {
         />
       </h1>
 
-      <h1 className="absolute top-6 left-10 text-3xl text-[#00ffff] pixel-text glow-cyan hidden md:block">
-        Crazy Race
-      </h1>
+      <div className="absolute top-4 left-10 hidden md:block">
+        <Image src="/crazyrace-logo.png" alt="Crazy Race" width={150} height={50} style={{ imageRendering: 'auto' }} className="h-auto drop-shadow-xl"
+        />
+      </div>
 
       {/* Logo & Title - Responsive untuk mobile */}
       <div className="relative z-10 flex flex-col justify-center items-center md:min-h-screen px-4 sm:px-6">
 
-        <h1 className="text-center mx-auto py-10 text-3xl text-[#00ffff] pixel-text glow-cyan md:hidden">
-          Crazy Race
-        </h1>
+        <div className="text-center mx-auto py-10 md:hidden">
+          <Image
+            src="/crazyrace-logo-utama.png"
+            alt="Crazy Race"
+            width={200}
+            height={70}
+            className="h-auto mx-auto"
+          />
+        </div>
 
         {/* Login Card - Lebih compact dan touch-friendly pada mobile */}
         <motion.div
@@ -176,22 +184,36 @@ export default function LoginPage() {
                 </motion.div>
               )}
 
-              <Button
-                type="button"
-                onClick={handleGoogleLogin}
-                disabled={isLoading}
-                variant="outline"
-                className="w-full min-h-12 sm:min-h-10 border-[#ff6bff]/60 text-[#ff6bff] hover:text-[#ff6bff] hover:bg-[#ff6bff]/20 hover:border-[#ff8aff] pixel-button flex items-center justify-center gap-2 sm:gap-3 px-4 py-5 transition-all duration-200 cursor-pointer"
-              >
-                {/* Icon Google — ukuran responsif */}
-                <FcGoogle className="w-6 h-6 sm:w-7 sm:h-7 shrink-0" />
+              <div className="relative">
+                <motion.div
+                  className="absolute -left-7 md:-left-10 top-1/2 -translate-y-1/2 text-2xl md:text-3xl text-[#ff6bff]"
+                  animate={{ x: [0, 10, 0] }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    repeatType: "loop",
+                    ease: "easeInOut",
+                  }}
+                >
+                  <FaHandPointRight />
+                </motion.div>
+                <Button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  disabled={isLoading}
+                  variant="outline"
+                  className="w-full min-h-12 sm:min-h-10 border-[#ff6bff]/60 text-[#ff6bff] hover:text-[#ff6bff] hover:bg-[#ff6bff]/20 hover:border-[#ff8aff] pixel-button flex items-center justify-center gap-2 sm:gap-3 px-4 py-5 transition-all duration-200 cursor-pointer"
+                >
+                  {/* Icon Google — ukuran responsif */}
+                  <FcGoogle className="w-6 h-6 sm:w-7 sm:h-7 shrink-0" />
 
-                {/* Teks kondisional: mobile = "Google", desktop = "Continue with Google" */}
-                <span className="text-center font-medium">
-                  <span className="sm:hidden">{t("login.googleMobile")}</span>
-                  <span className="hidden sm:inline">{t("login.googleDesktop")}</span>
-                </span>
-              </Button>
+                  {/* Teks kondisional: mobile = "Google", desktop = "Continue with Google" */}
+                  <span className="text-center font-medium">
+                    <span className="sm:hidden">{t("login.googleMobile")}</span>
+                    <span className="hidden sm:inline">{t("login.googleDesktop")}</span>
+                  </span>
+                </Button>
+              </div>
 
               {/* Divider - Lebih subtle pada mobile */}
               <div className="relative my-2">
@@ -230,7 +252,7 @@ export default function LoginPage() {
 
                 <Button
                   type="submit"
-                  disabled={isLoading  || !identifier.trim() || !password.trim()}
+                  disabled={isLoading || !identifier.trim() || !password.trim()}
                   className="w-full bg-gradient-to-r from-[#00ffff] via-[#00ffff]/80 to-[#ff6bff] hover:from-[#33ffff] hover:to-[#ff8aff] text-black font-bold pixel-button-large glow-cyan text-base sm:text-lg py-3.5 sm:py-4 h-12 sm:h-auto transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-lg hover:shadow-xl"
                 >
                   {isLoading ? (

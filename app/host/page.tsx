@@ -38,26 +38,30 @@ export default function QuestionListPage() {
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [currentPage, setCurrentPage] = useState(1)
   const [quizzes, setQuizzes] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [totalCount, setTotalCount] = useState(0) // NEW: Total count from server
+  const [loading, setLoading] = useState(true) // Initial load only
+  const [isFetching, setIsFetching] = useState(false) // Subtle loading for filter/page changes
   const [currentBgIndex, setCurrentBgIndex] = useState(0)
   const [isTransitioning, setIsTransitioning] = useState(false)
   const [creating, setCreating] = useState(false)
-  const [creatingQuizId, setCreatingQuizId] = useState<string | null>(null) // ✅ Track which quiz is being created
+  const [creatingQuizId, setCreatingQuizId] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
   const [profile, setProfile] = useState<any>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [favoritesMode, setFavoritesMode] = useState(false); // New: Toggle for favorites filter
-  const [myQuizzesMode, setMyQuizzesMode] = useState(false); // New: Toggle for my quizzes filter
+  const [favoritesMode, setFavoritesMode] = useState(false);
+  const [myQuizzesMode, setMyQuizzesMode] = useState(false);
+  const [categories, setCategories] = useState<string[]>(["All"]); // NEW: Categories from server
 
   const itemsPerPage = 9;
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
-
+  // Fetch profile (unchanged)
   useEffect(() => {
     const fetchProfile = async () => {
       if (!user?.id) return;
       const { data: profileData, error } = await supabase
         .from('profiles')
-        .select('id, favorite_quiz') // Tambah 'id' untuk creator_id di fetchQuizzes
+        .select('id, favorite_quiz')
         .eq('auth_user_id', user.id)
         .single();
 
@@ -65,19 +69,15 @@ export default function QuestionListPage() {
         console.error('Error fetching profile:', error);
       } else {
         setProfile(profileData);
-        console.log("tersambung dengan supabase gameforsmart.com")
         if (profileData?.favorite_quiz) {
           try {
             let parsed;
             if (typeof profileData.favorite_quiz === 'string') {
-              // Kalau masih string (jarang, tapi aman)
               parsed = JSON.parse(profileData.favorite_quiz);
             } else {
-              // Supabase auto-parse: udah object
               parsed = profileData.favorite_quiz;
             }
-            setFavorites(parsed.favorites || []); // Ambil array IDs
-            console.log('Parsed favorites:', parsed.favorites); // Debug: Cek di console
+            setFavorites(parsed.favorites || []);
           } catch (e) {
             console.error('Error parsing favorites:', e);
             setFavorites([]);
@@ -96,83 +96,117 @@ export default function QuestionListPage() {
     }
   }, [user]);
 
+  // Fetch categories once
+  useEffect(() => {
+    const fetchCategories = async () => {
+      if (!profile?.id) return;
+      const { data, error } = await supabase
+        .from('quizzes')
+        .select('category')
+        .or(`is_public.eq.true,creator_id.eq.${profile.id}`);
+
+      if (!error && data) {
+        const uniqueCats = ["All", ...new Set(data.map(q => q.category).filter(Boolean))];
+        setCategories(uniqueCats);
+      }
+    };
+    fetchCategories();
+  }, [profile?.id]);
+
+  // NEW: Fetch quizzes with server-side pagination
   useEffect(() => {
     const fetchQuizzes = async () => {
       if (!profile?.id) return;
 
-      setLoading(true);
+      setIsFetching(true); // Subtle loading indicator
 
       try {
+        const offset = (currentPage - 1) * itemsPerPage;
+
         const { data, error } = await supabase
-          .rpc('get_quizzes_with_question_count', {
-            user_id: profile?.id || null
+          .rpc('get_quizzes_paginated', {
+            p_user_id: profile.id,
+            p_search_query: searchQuery || null,
+            p_category_filter: selectedCategory === "All" ? null : selectedCategory,
+            p_favorites_filter: favoritesMode ? favorites : null,
+            p_creator_filter: myQuizzesMode ? profile.id : null,
+            p_limit: itemsPerPage,
+            p_offset: offset
           });
 
         if (error) {
           console.error("Error fetching quizzes:", error);
         } else {
           setQuizzes(data || []);
-          console.log('Fetched quizzes with counts:', data?.length);
+          // Extract total_count from first row
+          if (data && data.length > 0) {
+            setTotalCount(Number(data[0].total_count) || 0);
+          } else {
+            setTotalCount(0);
+          }
         }
       } catch (error) {
         console.error("Unexpected error:", error);
       } finally {
         setLoading(false);
+        setIsFetching(false);
       }
     };
 
     fetchQuizzes();
-  }, [profile?.id]);
+  }, [profile?.id, currentPage, searchQuery, selectedCategory, favoritesMode, myQuizzesMode, favorites]);
 
+  // Reset page to 1 when filters change
   useEffect(() => {
-    setCurrentPage(1); // Reset to 1 on filter change
-  }, [searchQuery, selectedCategory, favoritesMode, myQuizzesMode]); // Add all filter deps
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory, favoritesMode, myQuizzesMode]);
 
-  // UPDATE: Compute categories - tambah "Favorites" sebagai opsi
-  const categories = [
-    "All",
-    ...new Set(quizzes.map(q => q.category).filter(Boolean)),
-  ];
-
-  // Update filteredQuestions logic (AND my quizzes + category/favorites)
-  const filteredQuestions = quizzes.filter((q) => {
-    const matchesSearch = q.title.toLowerCase().includes(searchQuery.toLowerCase());
-    let matchesCategory = selectedCategory === "All" || q.category === selectedCategory;
-
-    // Favorites mode
-    if (favoritesMode) {
-      const isFavorite = favorites.includes(q.id);
-      matchesCategory = isFavorite && matchesCategory;
-    }
-
-    // New: My quizzes mode (AND with category/favorites)
-    if (myQuizzesMode) {
-      const isMine = q.creator_id === profile?.id;
-      matchesCategory = isMine && matchesCategory;
-    }
-
-    return matchesSearch && matchesCategory;
-  }, [searchQuery, selectedCategory, favoritesMode, myQuizzesMode, favorites, profile?.id]); // Add myQuizzesMode & profile.id deps
-
-  // New function for toggle my quizzes
   const toggleMyQuizzes = () => {
     setMyQuizzesMode(!myQuizzesMode);
-    setSelectedCategory("All"); // Reset category when toggle
+    setSelectedCategory("All");
     setFavoritesMode(false)
   };
 
   const toggleFavorites = () => {
     setFavoritesMode(!favoritesMode);
     setMyQuizzesMode(false)
-    setSelectedCategory("All"); // Reset category when toggle
+    setSelectedCategory("All");
   };
 
-  // Pagination
-  const totalPages = Math.ceil(filteredQuestions.length / itemsPerPage)
-  const paginatedQuestions = filteredQuestions.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  )
+  // Generate pagination numbers with ellipsis
+  const getPaginationItems = () => {
+    const items: (number | string)[] = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible + 2) {
+      // Show all pages if total is small
+      for (let i = 1; i <= totalPages; i++) items.push(i);
+    } else {
+      // Always show first page
+      items.push(1);
+
+      if (currentPage <= 3) {
+        // Near start: 1 2 3 4 ... last
+        for (let i = 2; i <= 4; i++) items.push(i);
+        items.push('...');
+        items.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        // Near end: 1 ... last-3 last-2 last-1 last
+        items.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) items.push(i);
+      } else {
+        // Middle: 1 ... curr-1 curr curr+1 ... last
+        items.push('...');
+        items.push(currentPage - 1);
+        items.push(currentPage);
+        items.push(currentPage + 1);
+        items.push('...');
+        items.push(totalPages);
+      }
+    }
+
+    return items;
+  };
 
   // ✅ OPTIMIZED: handleSelectQuiz - parallel insert + optimistic navigation
   async function handleSelectQuiz(quizId: string, router: any) {
@@ -206,18 +240,15 @@ export default function QuestionListPage() {
     };
 
     try {
-      // ✅ OPTIMIZATION 1: Parallel insert ke kedua database (lebih cepat ~50%)
-      // ✅ OPTIMIZATION 4: Hapus .select() yang tidak perlu (lebih cepat ~70%!)
       const [mainResult, gameResult] = await Promise.allSettled([
         supabase
           .from("game_sessions")
-          .insert(newMainSession), // ✅ Removed .select() - we already have gamePin!
+          .insert(newMainSession),
         mysupa
           .from("sessions")
-          .insert(primarySession) // ✅ Removed .select() - we already have sessId!
+          .insert(primarySession)
       ]);
 
-      // Check hasil dari kedua insert
       const mainError = mainResult.status === 'rejected' ? mainResult.reason : mainResult.value.error;
       const gameError = gameResult.status === 'rejected' ? gameResult.reason : gameResult.value.error;
 
@@ -282,7 +313,8 @@ export default function QuestionListPage() {
     await handleSelectQuiz(quizId, router);   // panggil yang bikin room + redirect
   };
 
-  if (loading || creating) return <LoadingRetro />
+  // Only show full loading on initial load or creating
+  if ((loading && quizzes.length === 0) || creating) return <LoadingRetro />
 
   return (
     <div className="h-screen bg-[#1a0a2a] relative overflow-hidden"> {/* Fixed height */}
@@ -300,38 +332,44 @@ export default function QuestionListPage() {
         />
       </AnimatePresence>
 
-      {/* Back Button - Fixed Top Left */}
-      <motion.button
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        whileHover={{ scale: 1.05 }}
-        className="absolute top-4 left-4 z-40 p-3 bg-[#00ffff]/20 border-2 border-[#00ffff] pixel-button hover:bg-[#33ffff]/30 glow-cyan rounded-lg shadow-lg shadow-[#00ffff]/30 min-w-[48px] min-h-[48px] flex items-center justify-center"
-        aria-label="Back to Home"
-        onClick={() => router.push('/')}
-      >
-        <ArrowLeft size={20} className="text-white" />
-      </motion.button>
-
-      <h1 className="absolute top-5 right-5 hidden md:block">
-        <Image
-          src="/gameforsmartlogo.webp"
-          alt="Gameforsmart Logo"
-          width={256}
-          height={64}
-        />
-      </h1>
-
-      <h1 className="absolute top-6 left-20 text-2xl font-bold text-[#00ffff] pixel-text glow-cyan hidden md:block">
-        Crazy Race
-      </h1>
-
       {(loading || creating) && (
         <LoadingRetro />
       )}
 
       {/* Scrollable Content Wrapper */}
       <div className="absolute inset-0 overflow-y-auto z-10">
-        <div className="relative container mx-auto px-6 py-8 max-w-6xl">
+        {/* Header - Full width, ikut scroll */}
+        <div className="w-full px-4 py-4 pb-0 flex items-center justify-between">
+          {/* Left side: Back button + Crazy Race logo */}
+          <div className="flex items-center gap-4">
+            <motion.button
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              whileHover={{ scale: 1.05 }}
+              className="p-3 bg-[#00ffff]/20 border-2 border-[#00ffff] pixel-button hover:bg-[#33ffff]/30 glow-cyan rounded-lg shadow-lg shadow-[#00ffff]/30 min-w-[48px] min-h-[48px] flex items-center justify-center"
+              aria-label="Back to Home"
+              onClick={() => router.push('/')}
+            >
+              <ArrowLeft size={20} className="text-white" />
+            </motion.button>
+
+            <div className="hidden md:block">
+              <Image src="/crazyrace-logo.png" alt="Crazy Race" width={270} height={50} style={{ imageRendering: 'auto' }} className="h-auto drop-shadow-xl" />
+            </div>
+          </div>
+
+          {/* Right side: Gameforsmart logo */}
+          <div className="hidden md:block">
+            <Image
+              src="/gameforsmartlogo.webp"
+              alt="Gameforsmart Logo"
+              width={256}
+              height={64}
+            />
+          </div>
+        </div>
+
+        <div className="relative container mx-auto px-6 py-8 pt-0 max-w-6xl">
           {/* Title */}
           <div className="text-center sm:m-7">
             <motion.div
@@ -436,7 +474,7 @@ export default function QuestionListPage() {
 
           {/* Questions Grid with Pagination in AnimatePresence */}
           <AnimatePresence mode="wait">
-            {paginatedQuestions.length > 0 ? (
+            {quizzes.length > 0 ? (
               <motion.div
                 key={`filter-${selectedCategory}-${favoritesMode}-${myQuizzesMode}-${searchQuery}-${currentPage}`}
                 initial={{ opacity: 0 }}
@@ -444,9 +482,15 @@ export default function QuestionListPage() {
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.1 }}
               >
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {paginatedQuestions.map((quiz, index) => {
-                    const isThisQuizCreating = creatingQuizId === quiz.id; // ✅ Check if this specific quiz is being created
+                {/* Subtle loading indicator */}
+                {isFetching && (
+                  <div className="flex justify-center mb-4">
+                    <div className="w-6 h-6 border-3 border-[#00ffff] border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
+                <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
+                  {quizzes.map((quiz: any, index: number) => {
+                    const isThisQuizCreating = creatingQuizId === quiz.id;
 
                     return (
                       <motion.div
@@ -455,22 +499,21 @@ export default function QuestionListPage() {
                         whileTap={!isThisQuizCreating ? { scale: 0.98 } : {}}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.2, delay: index * 0.05 }} // Stagger per item
+                        transition={{ duration: 0.2, delay: index * 0.05 }}
                       >
                         <Card
                           className={`relative bg-[#1a0a2a]/60 border-4 pixel-card h-full justify-end gap-3 transition-all duration-200
                         ${isThisQuizCreating
-                              ? "opacity-70 cursor-wait border-[#00ffff]/70 glow-cyan" // ✅ Loading state untuk quiz ini
+                              ? "opacity-70 cursor-wait border-[#00ffff]/70 glow-cyan"
                               : creating
-                                ? "opacity-50 cursor-not-allowed border-[#888]/40" // ✅ Disabled state untuk quiz lain
-                                : "border-[#ff6bff]/50 hover:border-[#ff6bff] glow-pink-subtle cursor-pointer" // ✅ Normal state
+                                ? "opacity-50 cursor-not-allowed border-[#888]/40"
+                                : "border-[#ff6bff]/50 hover:border-[#ff6bff] glow-pink-subtle cursor-pointer"
                             }`}
 
                           onClick={() => {
                             if (!creating) handleQuizSelect(quiz.id);
                           }}
                         >
-                          {/* ✅ Loading spinner untuk quiz yang sedang dibuat */}
                           {isThisQuizCreating && (
                             <div className="absolute inset-0 flex items-center justify-center bg-[#1a0a2a]/80 rounded-lg z-10">
                               <div className="flex flex-col items-center gap-2">
@@ -513,7 +556,7 @@ export default function QuestionListPage() {
                   })}
                 </div>
 
-                {/* Pagination inside AnimatePresence for smooth transition */}
+                {/* Flexible Pagination with Ellipsis */}
                 {totalPages > 1 && (
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
@@ -523,29 +566,39 @@ export default function QuestionListPage() {
                   >
                     <Button
                       onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className="pixel-button bg-[#ff6bff] border-4 border-white hover:bg-[#ff8aff] glow-pink"
+                      disabled={currentPage === 1 || loading}
+                      className="pixel-button bg-[#ff6bff] border-4 border-white hover:bg-[#ff8aff] glow-pink disabled:opacity-50 disabled:cursor-not-allowed"
                       variant="outline"
                     >
-                      Previous
+                      {t('soal.previous')}
                     </Button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                      <Button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        variant={page === currentPage ? "default" : "outline"}
-                        className={`pixel-button ${page === currentPage ? 'bg-[#00ffff] border-4 border-white hover:bg-[#33ffff] glow-cyan' : 'bg-[#ff6bff] border-4 border-white hover:bg-[#ff8aff] glow-pink'}`}
-                      >
-                        {page}
-                      </Button>
+
+                    {getPaginationItems().map((item, idx) => (
+                      typeof item === 'number' ? (
+                        <Button
+                          key={`page-${item}`}
+                          onClick={() => setCurrentPage(item)}
+                          disabled={loading}
+                          variant={item === currentPage ? "default" : "outline"}
+                          className={`pixel-button ${item === currentPage
+                            ? 'bg-[#00ffff] border-4 border-white hover:bg-[#33ffff] glow-cyan'
+                            : 'bg-[#ff6bff] border-4 border-white hover:bg-[#ff8aff] glow-pink'
+                            }`}
+                        >
+                          {item}
+                        </Button>
+                      ) : (
+                        <span key={`ellipsis-${idx}`} className="text-white pixel-text px-2">...</span>
+                      )
                     ))}
+
                     <Button
                       onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                      className="pixel-button bg-[#ff6bff] border-4 border-white hover:bg-[#ff8aff] glow-pink"
+                      disabled={currentPage === totalPages || loading}
+                      className="pixel-button bg-[#ff6bff] border-4 border-white hover:bg-[#ff8aff] glow-pink disabled:opacity-50 disabled:cursor-not-allowed"
                       variant="outline"
                     >
-                      Next
+                      {t('soal.next')}
                     </Button>
                   </motion.div>
                 )}

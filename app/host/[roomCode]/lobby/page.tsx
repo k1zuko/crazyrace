@@ -353,7 +353,7 @@ export default function HostRoomPage() {
 
   useEffect(() => {
     if (typeof window !== "undefined")
-      setJoinLink(`${window.location.origin}/${roomCode}`);
+      setJoinLink(`${window.location.origin}/join/${roomCode}`);
   }, [roomCode]);
 
   const copyToClipboard = async (
@@ -448,52 +448,59 @@ export default function HostRoomPage() {
           transition={{ duration: 1, ease: "easeInOut" }}
         />
       </AnimatePresence>
-      <motion.button
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-        whileHover={{ scale: 1.05 }}
-        className="absolute top-4 left-4 z-40 p-3 bg-[#00ffff]/20 border-2 border-[#00ffff] pixel-button hover:bg-[#33ffff]/20 glow-cyan rounded-lg shadow-lg shadow-[#00ffff]/30 min-w-[48px] min-h-[48px] flex items-center justify-center"
-        aria-label="Back to Settings"
-        onClick={() => router.push(`/host/${roomCode}/settings`)}
-      >
-        <ArrowLeft size={20} className="text-white" />
-      </motion.button>
-      <h1 className="absolute top-5 right-20 hidden md:block">
-        <Image
-          src="/gameforsmartlogo.webp"
-          alt="Gameforsmart Logo"
-          width={256}
-          height={64}
-        />
-      </h1>
-      <h1 className="absolute top-6 left-20 text-2xl font-bold text-[#00ffff] pixel-text glow-cyan hidden md:block">
-        Crazy Race
-      </h1>
-      <motion.button
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        whileHover={{ scale: 1.05 }}
-        onClick={() => setIsMuted((p) => !p)}
-        className={`absolute top-4 right-4 z-40 p-3 border-2 pixel-button rounded-lg shadow-lg min-w-[48px] min-h-[48px] flex items-center justify-center transition-all cursor-pointer ${isMuted
-          ? "bg-[#ff6bff]/30 border-[#ff6bff] glow-pink shadow-[#ff6bff]/30 hover:bg-[#ff8aff]/50"
-          : "bg-[#00ffff]/30 border-[#00ffff] glow-cyan shadow-[#00ffff]/30 hover:bg-[#33ffff]/50"
-          }`}
-        aria-label={isMuted ? "Unmute" : "Mute"}
-      >
-        <span className="filter drop-shadow-[2px_2px_2px_rgba(0,0,0,0.7)]">
-          {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
-        </span>
-      </motion.button>
       {/* Scrollable Content Wrapper */}
       <div className="absolute inset-0 overflow-y-auto z-10">
-        <div className="relative max-w-8xl mx-auto p-4 sm:p-6 md:p-8">
+        {/* Header - Full width, ikut scroll */}
+        <div className="w-full px-4 py-4 pb-0 flex items-center justify-between">
+          {/* Left side: Back button + Crazy Race logo */}
+          <div className="flex items-center gap-4">
+            <motion.button
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              whileHover={{ scale: 1.05 }}
+              className="p-3 bg-[#00ffff]/20 border-2 border-[#00ffff] pixel-button hover:bg-[#33ffff]/20 glow-cyan rounded-lg shadow-lg shadow-[#00ffff]/30 min-w-[48px] min-h-[48px] flex items-center justify-center"
+              aria-label="Back to Settings"
+              onClick={() => router.push(`/host/${roomCode}/settings`)}
+            >
+              <ArrowLeft size={20} className="text-white" />
+            </motion.button>
+
+            <div className="hidden md:block">
+              <Image src="/crazyrace-logo.png" alt="Crazy Race" width={270} height={50} style={{ imageRendering: 'auto' }} className="h-auto drop-shadow-xl" />
+            </div>
+          </div>
+
+          {/* Right side: Gameforsmart logo + Mute button */}
+          <div className="flex items-center gap-4">
+            <div className="hidden md:block">
+              <Image src="/gameforsmartlogo.webp" alt="Gameforsmart Logo" width={256} height={64} />
+            </div>
+            <motion.button
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              whileHover={{ scale: 1.05 }}
+              onClick={() => setIsMuted((p) => !p)}
+              className={`p-3 border-2 pixel-button rounded-lg shadow-lg min-w-[48px] min-h-[48px] flex items-center justify-center transition-all cursor-pointer ${isMuted
+                ? "bg-[#ff6bff]/30 border-[#ff6bff] glow-pink shadow-[#ff6bff]/30 hover:bg-[#ff8aff]/50"
+                : "bg-[#00ffff]/30 border-[#00ffff] glow-cyan shadow-[#00ffff]/30 hover:bg-[#33ffff]/50"
+                }`}
+              aria-label={isMuted ? "Unmute" : "Mute"}
+            >
+              <span className="filter drop-shadow-[2px_2px_2px_rgba(0,0,0,0.7)]">
+                {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+              </span>
+            </motion.button>
+          </div>
+        </div>
+
+        <div className="relative max-w-8xl mx-auto p-4 sm:p-6 md:p-8 pt-0">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             className="text-center pb-4"
           >
-            <div className="inline-block py-4 md:pt-10">
+            <div className="inline-block py-4 pt-0">
               <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-[#ffefff] pixel-text glow-pink">
                 {t("hostroom.title")}
               </h1>

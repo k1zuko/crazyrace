@@ -49,18 +49,24 @@
         box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
       }
 
-      @media (min-width: 768px) {
-        #screen-area {
-          border: 20px solid #2d3748;
-          margin: 20px;
-          max-height: none;
-          flex: none;
-          height: 100vh;
-          margin: 0;
-          border: none;
-          border-radius: 0;
-        }
+    @media (min-width: 768px) {
+      #screen-area {
+        border: 20px solid #2d3748;
+        margin: 20px;
+        max-height: none;
+        flex: none;
+        height: 100vh;
+        margin: 0;
+        border: none;
+        border-radius: 0;
       }
+    }
+
+    @media (min-width: 768px) {
+    #mobile-controls {
+      display: none !important;
+    }
+  }
 
       #canvas {
         display: block;
@@ -84,21 +90,19 @@
         box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.5);
       }
 
-      #mobile-controls {
-        /* ... kode lama tetap ... */
-        display: flex !important;
-        /* Sudah ada, tapi pastikan */
-        justify-content: space-evenly;
-        /* Ubah dari space-between ke space-evenly biar jarak super rata */
-        align-items: flex-end;
-        /* Tombol rata di bawah */
-        width: 100%;
-
-        gap: 0.5rem;
-        /* Tambah gap minimal antar tombol untuk handphone besar */
-        padding: 0 2rem;
-        /* Padding samping biar tidak nempel pinggir layar */
-      }
+#mobile-controls {
+  position: absolute !important;
+  bottom: 40px;                /* <-- ubah angka ini sesuai keinginan */
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-evenly;
+  align-items: flex-end;
+  gap: 0.5rem;
+  padding: 0 1.5rem;
+  z-index: 30;                 /* pastikan di atas canvas */
+  pointer-events: auto;
+}
 
       #mobile-controls button {
         width: auto;
@@ -131,61 +135,6 @@
         /* Atau ganti jadi: display: contents; biar sub-container "hilang" dan tombol langsung flex di parent */
         display: contents;
         gap: 1.5rem;
-      }
-
-      #left,
-      #right {
-        background: rgba(59, 130, 246, 0.9);
-        /* Soft blue */
-      }
-
-      #accel {
-        background: rgba(34, 197, 94, 0.9);
-        /* Soft green */
-      }
-
-      #brake {
-        background: rgba(239, 68, 68, 0.9);
-        /* Soft red */
-      }
-
-      /* Mobile specific: Show controls and adjust position */
-      @media (max-width: 767px) {
-        #mobile-controls {
-          display: flex !important;
-          margin-top: -130px;
-          /* Sesuai permintaan: Naikkan tombol ke atas 230px */
-        }
-
-        #screen-area {
-          max-height: calc(100vh + 110px);
-          /* Adjust: 120px controls - 230px naik = -110px efektif, jadi +110px ruang untuk overlap tanpa potong */
-          z-index: 5;
-          /* Pastikan screen di belakang tombol (tombol z-index 10) */
-        }
-
-        #controls-area {
-          display: flex;
-          height: 350px;
-          /* Adjust: Tinggi lebih besar (120px + 230px) agar margin-top -230px muat sepenuhnya tanpa keluar container */
-          align-items: flex-start;
-          /* Align ke atas agar tombol start dari top controls-area */
-          padding-top: 230px;
-          /* Offset internal agar tombol posisi pas di -230px relatif */
-        }
-      }
-
-      /* Hide on desktop */
-      @media (min-width: 768px) {
-        #mobile-controls {
-          display: none !important;
-          margin-top: 0;
-          /* Reset untuk desktop */
-        }
-
-        #controls-area {
-          display: none;
-        }
       }
 
       #controls {
@@ -369,10 +318,58 @@
         text-align: center;
         max-width: 80%;
       }
+  #desktop-controls {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 100;
+    display: none; /* Default disembunyikan */
+  }
+
+  @media (min-width: 768px) {
+  #desktop-controls {
+    display: grid;
+    grid-template-columns: 60px 60px 60px;
+    grid-template-rows: 60px 60px;
+    grid-template-areas:
+      ". up ."
+      "left center right"
+      ". down .";
+    gap: 8px;
+  }
+}
+
+.desk-btn {
+  width: 80px;
+  height: 80px;
+  border-radius: 0px;           /* sudut melengkung ringan (bisa diganti 0px kalau mau kotak lurus) */
+ 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  transition: all 0.15s ease;
+  overflow: visible;             /* penting! biar gambar tidak dipotong */
+}
+
+.desk-btn img {
+  width: 100%;           /* gambar di dalam tombol jadi lebih besar */
+  height: 100%;
+  object-fit: contain;
+}
+
+.desk-btn:active {
+
+  transform: scale(0.95);
+ 
+}
     </style>
   </head>
 
   <body>
+    <div id="controls-info" class="hidden bg-gray-800 text-white p-4 rounded-lg shadow-lg" style="position: fixed; top: 1rem; right: 1rem; z-index: 100; opacity: 1; transition: opacity 0.5s ease-out;">
+      <p>Use <strong>WASD</strong> or <strong>Arrow Keys</strong> to move.</p>
+    </div>
     <div id="game-container">
       <div id="screen-area">
         <button id="controls-toggle"
@@ -446,26 +443,42 @@
         </div>
       </div>
       <div id="controls-area">
-        <div id="mobile-controls">
-        <div id="accel-brake-controls">
-          <button id="brake" class="control-btn" title="Brake">
-            <img src="./images/down.webp" alt="Brake" width="100%">
-          </button>
-          <button id="accel" class="control-btn" title="Accelerate">
-            <img src="./images/up.webp" alt="Accelerate" width="100%">
-          </button>
-        </div>
-        <div id="steering-controls">
-          <button id="left" class="control-btn" title="Steer Left">
-            <img src="./images/left.webp" alt="Steer Left" width="100%">
-          </button>
-          <button id="right" class="control-btn" title="Steer Right">
-            <img src="./images/right.webp" alt="Steer Right" width="100%">
-          </button>
-        </div>
-      </div>
-      </div>
+
+<div id="mobile-controls" class="md:hidden">  <!-- md:hidden = Tailwind: sembunyi di ≥768px -->
+    <div id="accel-brake-controls">
+      <button id="brake" class="control-btn" title="Brake">
+        <img src="./images/down.webp" alt="Brake" width="100%">
+      </button>
+      <button id="accel" class="control-btn" title="Accelerate">
+        <img src="./images/up.webp" alt="Accelerate" width="100%">
+      </button>
     </div>
+    <div id="steering-controls">
+      <button id="left" class="control-btn" title="Steer Left">
+        <img src="./images/left.webp" alt="Steer Left" width="100%">
+      </button>
+      <button id="right" class="control-btn" title="Steer Right">
+        <img src="./images/right.webp" alt="Steer Right" width="100%">
+      </button>
+    </div>
+  </div>
+    </div>
+
+    <div id="desktop-controls">
+    <div class="desk-btn" id="desk-up" style="grid-area: up;">
+      <img src="./images/up.webp" alt="Accelerate" class="w-full h-full object-contain">
+    </div>
+    <div class="desk-btn" id="desk-left" style="grid-area: left;">
+      <img src="./images/left.webp" alt="Left" class="w-full h-full object-contain">
+    </div>
+    <div class="desk-btn center" style="grid-area: center;"></div>
+    <div class="desk-btn" id="desk-right" style="grid-area: right;">
+      <img src="./images/right.webp" alt="Right" class="w-full h-full object-contain">
+    </div>
+    <div class="desk-btn" id="desk-down" style="grid-area: down;">
+      <img src="./images/down.webp" alt="Brake" class="w-full h-full object-contain">
+    </div>
+  </div>
 
     <!-- Finish Screen Overlay -->
     <div id="finish-screen">
@@ -638,7 +651,7 @@
             // Otomatis redirect setelah 2 detik
             // setTimeout(() => {
             //   if (roomCode && startIndex) {
-            //     window.location.href = `/join/${roomCode}/game?startIndex=${startIndex}`;
+            //     window.location.href = `/player/${roomCode}/game?startIndex=${startIndex}`;
             //   } else {
             //     // Fallback if no params
             //     window.history.back();
@@ -963,26 +976,14 @@ function updateCarOffset(car, carSegment, playerSegment, playerW) {
       }
 
       // Fungsi untuk update visibilitas kontrol mobile berdasarkan lebar layar
-      function updateControlsVisibility() {
-        const isMobileView = window.innerWidth < 768;
-        const mobileControls = document.getElementById('mobile-controls');
-        const controlsArea = document.getElementById('controls-area');
-        if (isMobileView) {
-          mobileControls.style.display = 'flex';
-          controlsArea.style.display = 'flex';
-        } else {
-          mobileControls.style.display = 'none';
-          controlsArea.style.display = 'none';
-        }
-      }
-
+ 
       window.addEventListener('resize', () => {
         resizeCanvas();
-        updateControlsVisibility();
+        
       });
 
       resizeCanvas();
-      updateControlsVisibility(); // Panggil awal untuk set visibilitas berdasarkan ukuran saat ini
+
 
       // Mobile Controls - Selalu tambahkan event listener, tapi visibilitas dikontrol via CSS/JS
       const leftBtn = document.getElementById('left');
@@ -1008,6 +1009,57 @@ function updateCarOffset(car, carSegment, playerSegment, playerW) {
       document.addEventListener('gesturestart', (e) => e.preventDefault());
     </script>
 
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        if (!isTouchDevice) {
+          const controlsInfo = document.getElementById('controls-info');
+          if (controlsInfo) {
+            controlsInfo.classList.remove('hidden');
+            setTimeout(() => {
+              controlsInfo.style.opacity = '0';
+              setTimeout(() => {
+                controlsInfo.remove();
+              }, 500); // Wait for fade out to complete
+            }, 3000);
+          }
+        }
+      });
+      const deskUp    = document.getElementById('desk-up');
+const deskDown  = document.getElementById('desk-down');
+const deskLeft  = document.getElementById('desk-left');
+const deskRight = document.getElementById('desk-right');
+
+function handlePress(flagSetter) {
+  return function(e) {
+    e.preventDefault();
+    if (!gameFinished) flagSetter(true);
+  };
+}
+
+function handleRelease(flagSetter) {
+  return function(e) {
+    e.preventDefault();
+    flagSetter(false);
+  };
+}
+
+deskUp.addEventListener('mousedown', handlePress(() => { keyFaster = true; }));
+deskUp.addEventListener('mouseup',   handleRelease(() => { keyFaster = false; }));
+deskUp.addEventListener('mouseleave', handleRelease(() => { keyFaster = false; }));
+
+deskDown.addEventListener('mousedown', handlePress(() => { keySlower = true; }));
+deskDown.addEventListener('mouseup',   handleRelease(() => { keySlower = false; }));
+deskDown.addEventListener('mouseleave', handleRelease(() => { keySlower = false; }));
+
+deskLeft.addEventListener('mousedown', handlePress(() => { keyLeft = true; }));
+deskLeft.addEventListener('mouseup',   handleRelease(() => { keyLeft = false; }));
+deskLeft.addEventListener('mouseleave', handleRelease(() => { keyLeft = false; }));
+
+deskRight.addEventListener('mousedown', handlePress(() => { keyRight = true; }));
+deskRight.addEventListener('mouseup',   handleRelease(() => { keyRight = false; }));
+deskRight.addEventListener('mouseleave', handleRelease(() => { keyRight = false; }));
+    </script>
   </body>
 
   </html>

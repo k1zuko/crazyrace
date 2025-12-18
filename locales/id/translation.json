@@ -136,6 +136,10 @@
       "en": "Inggris",
       "id": "Bahasa Indonesia"
     },
+    "loadingSession": "Memuat sesi atau sesi tidak ditemukan...",
+    "unknownQuiz": "Kuis Tidak Diketahui",
+    "noDescription": "Tidak ada deskripsi tersedia",
+    "minutes": "Menit",
     "deleteSession": {
       "title": "Hapus Sesi?",
       "description": "Tindakan ini akan menghapus sesi.",
@@ -187,11 +191,25 @@
     }
   },
   "monitor":{
-  "title" : "Progress Balapan",
-  "button": "Akhiri Balapan"
+    "title": "Progress Balapan",
+    "button": "Akhiri Balapan",
+    "endGame": "Akhiri Permainan",
+    "endGameConfirm": "Apakah Anda yakin ingin mengakhiri permainan?",
+    "cancel": "Batal",
+    "confirm": "Konfirmasi",
+    "noPlayers": "Belum ada pemain dalam permainan..."
   },
   "resulthost":{
-    "title": "Peringkat"
+    "title": "Peringkat",
+    "notAvailable": "Peringkat tidak tersedia",
+    "noDataFound": "Data tidak ditemukan",
+    "backToHome": "Kembali ke Beranda",
+    "home": "BERANDA",
+    "restart": "MULAI ULANG",
+    "noFinished": "Belum ada pemain yang selesai",
+    "sessionNotFound": "Sesi tidak ditemukan",
+    "failedLoad": "Gagal memuat peringkat",
+    "restartFailed": "Gagal memulai ulang permainan"
   },
     "joinresult":{
     "title": "Hasil",
