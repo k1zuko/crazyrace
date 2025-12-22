@@ -434,7 +434,7 @@ export default function HostMonitorPage() {
                     const currentlyAnswering = progress > 0 && !isCompleted && progress < totalQuestions;
 
                     return (
-                      <motion.div key={player.id} layoutId={player.id} initial={{ opacity: 0, scale: 0.8, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.8, y: -20 }} transition={{ type: "spring", stiffness: 300, damping: 30 }} whileHover={{ scale: 1.05 }} className={`group ${currentlyAnswering ? "glow-cyan animate-neon-pulse" : "glow-pink-subtle"}`}>
+                      <motion.div key={player.id} initial={{ opacity: 0, scale: 0.8, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.8, y: -20 }} transition={{ type: "spring", stiffness: 300, damping: 30 }} whileHover={{ scale: 1.05 }} className={`group ${currentlyAnswering ? "glow-cyan animate-neon-pulse" : "glow-pink-subtle"}`}>
                         <Card className={`p-3 bg-[#1a0a2a]/50 border-2 border-double transition-all duration-300 h-full gap-4 ${currentlyAnswering ? "border-[#00ffff]/70 bg-[#00ffff]/10" : isCompleted ? "border-[#00ff00]/70 bg-[#00ff00]/10" : "border-[#ff6bff]/70"}`}>
                           <div className="flex items-center justify-end">
                             {isCompleted ? (

@@ -506,8 +506,8 @@ export default function HostRoomPage() {
               </h1>
             </div>
           </motion.div>
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-2">
-            <Card className="bg-[#1a0a2a]/60 border-2 sm:border-3 border-[#ff6bff]/50 pixel-card glow-pink-subtle p-2 sm:p-4 lg:col-span-2 order-1 lg:order-1">
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-2 items-start">
+            <Card className="bg-[#1a0a2a]/60 border-2 sm:border-3 border-[#ff6bff]/50 pixel-card glow-pink-subtle p-2 sm:p-4 lg:col-span-2 order-1 lg:order-1 self-start">
               <div className="text-center space-y-2">
                 <div className="relative p-3 sm:p-4 md:p-5 bg-[#0a0a0f] rounded-lg">
                   <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-[#00ffff] pixel-text glow-cyan">

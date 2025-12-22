@@ -10,6 +10,7 @@ interface Profile {
   fullname?: string
   avatar_url?: string
   auth_user_id: string
+  role?: string
 }
 
 interface AuthContextType {

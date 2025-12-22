@@ -30,4 +30,4 @@ next-env.d.ts
 .agent
 
 # stress test (private)
-/app/test
+# /app/test
