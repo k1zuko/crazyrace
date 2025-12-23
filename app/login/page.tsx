@@ -133,10 +133,10 @@ export default function LoginPage() {
 
       <h1 className="absolute top-5 right-10 hidden md:block">
         <Image
-          src="/gameforsmartlogo.webp"
+          src="/gameforsmart-logo.png"
           alt="Gameforsmart Logo"
-          width={256}
-          height={64}
+          width={300}
+          height={100}
         />
       </h1>
 

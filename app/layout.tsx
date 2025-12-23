@@ -49,7 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <head>
-        <link rel="preload" as="image" href="/gameforsmartlogo.webp" type="image/webp" fetchPriority="high" />
+        <link rel="preload" as="image" href="/gameforsmart-logo.png" type="image/png" fetchPriority="high" />
         <link rel="preload" as="image" href="/crazyrace-logo.png" type="image/png" fetchPriority="high" />
         <link rel="preload" as="image" href="/crazyrace-logo-utama.png" type="image/png" fetchPriority="high" />
         <link rel="preload" as="image" href="/assets/background/1.webp" type="image/webp" fetchPriority="high" />

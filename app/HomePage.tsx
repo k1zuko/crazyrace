@@ -452,10 +452,10 @@ export default function HomePage() {
       />
       <h1 className="absolute top-6 md:top-4 left-4 w-42 md:w-50 lg:w-100">
         <Image
-          src="/gameforsmartlogo.webp"
+          src="/gameforsmart-logo.png"
           alt="Gameforsmart Logo"
-          width="256"
-          height="64"
+          width="300"
+          height="100"
           priority
         />
       </h1>

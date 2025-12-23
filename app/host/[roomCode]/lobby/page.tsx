@@ -473,7 +473,7 @@ export default function HostRoomPage() {
           {/* Right side: Gameforsmart logo + Mute button */}
           <div className="flex items-center gap-4">
             <div className="hidden md:block">
-              <Image src="/gameforsmartlogo.webp" alt="Gameforsmart Logo" width={256} height={64} />
+              <Image src="/gameforsmart-logo.png" alt="Gameforsmart Logo" width={300} height={100} />
             </div>
             <motion.button
               initial={{ opacity: 0, x: 20 }}

@@ -495,7 +495,7 @@ export default function LobbyPage() {
 
           {/* Right side: Gameforsmart logo */}
           <div className="hidden md:block">
-            <Image src="/gameforsmartlogo.webp" alt="Gameforsmart Logo" width={256} height={64} />
+            <Image src="/gameforsmart-logo.png" alt="Gameforsmart Logo" width={300} height={100} />
           </div>
         </div>
 
