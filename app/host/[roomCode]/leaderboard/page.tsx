@@ -283,7 +283,7 @@ export default function HostLeaderboardPage() {
       }
 
       console.log("Restart berhasil! PIN baru:", newPin);
-      router.push(`/host/${newPin}`);
+      router.push(`/host/${newPin}/lobby`);
 
     } catch (err: any) {
       console.error("Restart gagal:", err);

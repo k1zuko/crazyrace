@@ -29,6 +29,8 @@ type QuizQuestion = {
   // correctAnswer tidak disimpan di client untuk keamanan
 }
 
+type GameMode = 'quiz' | 'racing';
+
 const APP_NAME = "crazyrace"; // Safety check for multi-tenant DB
 
 export default function QuizGamePage() {
@@ -36,6 +38,12 @@ export default function QuizGamePage() {
   const router = useRouter()
   const roomCode = params.roomCode as string
 
+  // ============ GAME MODE STATE ============
+  const [gameMode, setGameMode] = useState<GameMode>('quiz');
+  const [gameSrc, setGameSrc] = useState('/racing-game/v4.final.html');
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  // ============ QUIZ STATES ============
   const [participantId, setParticipantId] = useState<string>("")
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
@@ -116,6 +124,21 @@ export default function QuizGamePage() {
           setGameDuration((prefetched.session.total_time_minutes || 5) * 60);
           setGameStartTime(new Date(prefetched.session.started_at).getTime());
 
+          // ✅ Set game source based on difficulty
+          let src = '/racing-game/v4.final.html';
+          switch (prefetched.session.difficulty) {
+            case 'easy':
+              src = '/racing-game/v1.straight.html';
+              break;
+            case 'normal':
+              src = '/racing-game/v2.curves.html';
+              break;
+            case 'hard':
+              src = '/racing-game/v4.final.html';
+              break;
+          }
+          setGameSrc(src);
+
           // Cache questions ke localStorage untuk reload
           const cachedQuestionsKey = `quizQuestions_${roomCode}`;
           localStorage.setItem(cachedQuestionsKey, JSON.stringify(prefetched.questions));
@@ -135,10 +158,10 @@ export default function QuizGamePage() {
         // Soal sudah tersimpan, gunakan dari cache
         const parsedQuestions = JSON.parse(cachedQuestions);
 
-        // Ambil session info (timing, status)
+        // Ambil session info (timing, status, difficulty)
         const { data: sess, error } = await mysupa
           .from("sessions")
-          .select("id, status, started_at, total_time_minutes")
+          .select("id, status, started_at, total_time_minutes, difficulty")
           .eq("game_pin", roomCode)
           .single();
 
@@ -147,10 +170,25 @@ export default function QuizGamePage() {
           return;
         }
 
-        // Ambil participant untuk tahu index soal mana sekarang
+        // ✅ Set game source based on difficulty
+        let src = '/racing-game/v4.final.html';
+        switch (sess.difficulty) {
+          case 'easy':
+            src = '/racing-game/v1.straight.html';
+            break;
+          case 'normal':
+            src = '/racing-game/v2.curves.html';
+            break;
+          case 'hard':
+            src = '/racing-game/v4.final.html';
+            break;
+        }
+        setGameSrc(src);
+
+        // Ambil participant untuk tahu index soal mana sekarang + racing status
         const { data: participant } = await mysupa
           .from("participants")
-          .select("answers, completion, current_question")
+          .select("answers, completion, current_question, racing")
           .eq("id", participantId)
           .single();
 
@@ -163,6 +201,11 @@ export default function QuizGamePage() {
           }
 
           setCurrentQuestionIndex(answeredCount);
+
+          // ✅ Restore racing mode jika player refresh saat sedang racing
+          if (participant.racing) {
+            setGameMode('racing');
+          }
         }
 
         setSession(sess);
@@ -176,7 +219,7 @@ export default function QuizGamePage() {
       // 2. Jika tidak ada di cache, fetch dari database (HANYA FIRST TIME)
       const { data: sess, error } = await mysupa
         .from("sessions")
-        .select("id, status, started_at, total_time_minutes, current_questions")
+        .select("id, status, started_at, total_time_minutes, current_questions, difficulty")
         .eq("game_pin", roomCode)
         .single();
 
@@ -184,6 +227,21 @@ export default function QuizGamePage() {
         router.replace(`/player/${roomCode}/lobby`);
         return;
       }
+
+      // ✅ Set game source based on difficulty
+      let src = '/racing-game/v4.final.html';
+      switch (sess.difficulty) {
+        case 'easy':
+          src = '/racing-game/v1.straight.html';
+          break;
+        case 'normal':
+          src = '/racing-game/v2.curves.html';
+          break;
+        case 'hard':
+          src = '/racing-game/v4.final.html';
+          break;
+      }
+      setGameSrc(src);
 
       // 3. Parse questions TANPA correctAnswer (untuk keamanan)
       const parsedQuestions = (sess.current_questions || []).map((q: any) => ({
@@ -196,10 +254,10 @@ export default function QuizGamePage() {
       // 4. Simpan soal ke localStorage (TANPA jawaban - aman)
       localStorage.setItem(cachedQuestionsKey, JSON.stringify(parsedQuestions));
 
-      // 5. Ambil participant
+      // 5. Ambil participant (termasuk racing status)
       const { data: participant } = await mysupa
         .from("participants")
-        .select("answers, completion, current_question")
+        .select("answers, completion, current_question, racing")
         .eq("id", participantId)
         .single();
 
@@ -214,6 +272,11 @@ export default function QuizGamePage() {
 
         // Baru set index setelah yakin tidak selesai
         setCurrentQuestionIndex(answeredCount);
+
+        // ✅ Restore racing mode jika player refresh saat sedang racing
+        if (participant.racing) {
+          setGameMode('racing');
+        }
       }
 
       // 7. SET SEMUA STATE (setelah semua pengecekan selesai)
@@ -327,6 +390,42 @@ export default function QuizGamePage() {
     return () => clearInterval(bgInterval);
   }, []);
 
+  // ============ RACING GAME MESSAGE HANDLER ============
+  useEffect(() => {
+    const handleMessage = async (event: MessageEvent) => {
+      if (!event.data || event.data.type !== 'racing_finished' || !participantId) return;
+
+      try {
+        // UPDATE LANGSUNG ke mysupa.participants → NO RPC!
+        const { error } = await mysupa
+          .from("participants")
+          .update({ racing: false })
+          .eq("id", participantId);
+
+        if (error) throw error;
+
+        // ✅ INSTANT: Switch back to quiz mode (no navigation!)
+        setGameMode('quiz');
+        setSelectedAnswer(null);
+        setIsAnswered(false);
+        setShowResult(false);
+        setCorrectAnswerIndex(null);
+      } catch (err) {
+        console.error("Gagal update racing status:", err);
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [participantId]);
+
+  // Focus iframe when in racing mode
+  useEffect(() => {
+    if (gameMode === 'racing' && iframeRef.current) {
+      iframeRef.current.contentWindow?.focus();
+    }
+  }, [gameMode]);
+
   const handleAnswerSelect = async (answerIndex: number) => {
     if (isAnswered || !currentQuestion || !participantId) return;
 
@@ -394,8 +493,9 @@ export default function QuizGamePage() {
     if (isFinished) {
       saveProgressAndRedirect();
     } else if (isRacing) {
-      localStorage.setItem("nextQuestionIndex", nextIndex.toString());
-      router.push(`/player/${roomCode}/minigame`);
+      // ✅ INSTANT: Switch to racing mode (no navigation!)
+      setCurrentQuestionIndex(nextIndex);
+      setGameMode('racing');
     } else {
       setCurrentQuestionIndex(nextIndex);
       setSelectedAnswer(null);
@@ -426,11 +526,16 @@ export default function QuizGamePage() {
     return "text-[#00ffff] glow-cyan";
   };
 
-  const isReady = !loading && !error && questions.length > 0 && gameStartTime && gameDuration > 0 && !!currentQuestion;
+  const isReady = !loading && !error && questions.length > 0 && gameStartTime && gameDuration > 0 && totalTimeRemaining > 0 && !!currentQuestion;
 
   if (!isReady) {
-    return (
-      <div className="min-h-screen bg-[#1a0a2a] flex items-center justify-center relative overflow-hidden">
+    return <LoadingRetro />;
+  }
+
+  return (
+    <div className="min-h-screen bg-[#1a0a2a] relative overflow-hidden">
+      {/* ============ QUIZ UI ============ */}
+      <div className={gameMode === 'quiz' ? 'block' : 'hidden'}>
         <AnimatePresence mode="wait">
           <motion.div
             key={currentBgIndex}
@@ -439,86 +544,86 @@ export default function QuizGamePage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 1 }}
+            transition={{ duration: 1, ease: "easeInOut" }}
           />
         </AnimatePresence>
-        <LoadingRetro />
-        {error && (
-          <div className="absolute top-4 left-4 bg-red-500/90 text-white p-2 rounded pixel-text">
-            Error: {error}
+        <div className="relative z-10 max-w-7xl mx-auto pt-8 px-4">
+          <div className="text-center">
+            <Image src="/crazyrace-logo-utama.png" alt="Crazy Race" width={200} height={80} style={{ imageRendering: 'auto' }} className="h-auto mx-auto drop-shadow-xl" />
           </div>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-[#1a0a2a] relative overflow-hidden">
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentBgIndex}
-          className="absolute inset-0 w-full h-full bg-cover bg-center"
-          style={{ backgroundImage: `url(${backgroundGifs[currentBgIndex]})` }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 1, ease: "easeInOut" }}
-        />
-      </AnimatePresence>
-      <div className="relative z-10 max-w-7xl mx-auto pt-8 px-4">
-        <div className="text-center">
-          <Image src="/crazyrace-logo-utama.png" alt="Crazy Race" width={200} height={80} style={{ imageRendering: 'auto' }} className="h-auto mx-auto drop-shadow-xl" />
-        </div>
-        <Card className="bg-[#1a0a2a]/40 border-[#ff6bff]/50 pixel-card my-8 px-4 py-2">
-          <CardContent className="px-0">
-            <div className="flex sm:items-center justify-between gap-4">
-              <div className="flex items-center space-x-3 sm:space-x-4">
-                <Clock className={`h-5 w-5 sm:h-7 sm:w-7 md:h-8 md:w-8 lg:h-10 lg:w-10 ${getTimeColor()}`} />
-                <div>
-                  <div className={`text-base sm:text-xl md:text-2xl lg:text-3xl font-bold ${getTimeColor()}`}>
-                    {formatTime(totalTimeRemaining)}
+          <Card className="bg-[#1a0a2a]/40 border-[#ff6bff]/50 pixel-card my-8 px-4 py-2">
+            <CardContent className="px-0">
+              <div className="flex sm:items-center justify-between gap-4">
+                <div className="flex items-center space-x-3 sm:space-x-4">
+                  <Clock className={`h-5 w-5 sm:h-7 sm:w-7 md:h-8 md:w-8 lg:h-10 lg:w-10 ${getTimeColor()}`} />
+                  <div>
+                    <div className={`text-base sm:text-xl md:text-2xl lg:text-3xl font-bold ${getTimeColor()}`}>
+                      {formatTime(totalTimeRemaining)}
+                    </div>
                   </div>
                 </div>
+                <div className="flex items-center">
+                  <Badge className="bg-[#1a0a2a]/50 border-[#00ffff] text-[#00ffff] px-3 sm:px-4 sm:py-2 text-base sm:text-lg md:text-xl lg:text-2xl pixel-text glow-cyan">
+                    {(currentQuestionIndex + 1) > totalQuestions ? totalQuestions : (currentQuestionIndex + 1)}/{totalQuestions}
+                  </Badge>
+                </div>
               </div>
-              <div className="flex items-center">
-                <Badge className="bg-[#1a0a2a]/50 border-[#00ffff] text-[#00ffff] px-3 sm:px-4 sm:py-2 text-base sm:text-lg md:text-xl lg:text-2xl pixel-text glow-cyan">
-                  {(currentQuestionIndex + 1) > totalQuestions ? totalQuestions : (currentQuestionIndex + 1)}/{totalQuestions}
-                </Badge>
+            </CardContent>
+          </Card>
+          <Card className="bg-[#1a0a2a]/40 border-[#ff6bff]/50 pixel-card">
+            <CardHeader className="text-center pb-4 px-4">
+              <div className="max-h-[200px] overflow-y-auto"> {/* <-- ini yang penting */}
+                <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-[#00ffff] pixel-text glow-cyan leading-tight text-balance whitespace-pre-wrap break-words px-2">
+                  {currentQuestion.question}
+                </h2>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-[#1a0a2a]/40 border-[#ff6bff]/50 pixel-card">
-          <CardHeader className="text-center pb-4 px-4">
-            <div className="max-h-[200px] overflow-y-auto"> {/* <-- ini yang penting */}
-              <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-[#00ffff] pixel-text glow-cyan leading-tight text-balance whitespace-pre-wrap break-words px-2">
-                {currentQuestion.question}
-              </h2>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {currentQuestion.options.map((option, index) => (
-                <motion.button
-                  key={index}
-                  onClick={() => handleAnswerSelect(index)}
-                  disabled={isAnswered}
-                  className={`p-3 sm:p-4 rounded-xl border-4 border-double transition-all duration-200 text-left bg-[#1a0a2a]/50 w-full overflow-hidden ${getOptionStyle(index)}`}
-                  whileHover={{ scale: isAnswered ? 1 : 1.01 }}
-                  whileTap={{ scale: isAnswered ? 1 : 0.99 }}
-                >
-                  <div className="flex items-center gap-2 sm:gap-3 w-full">
-                    <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#ff6bff]/20 flex items-center justify-center font-bold text-[#ff6bff] pixel-text glow-pink-subtle flex-shrink-0 text-sm sm:text-base">
-                      {String.fromCharCode(65 + index)}
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {currentQuestion.options.map((option, index) => (
+                  <motion.button
+                    key={index}
+                    onClick={() => handleAnswerSelect(index)}
+                    disabled={isAnswered}
+                    className={`p-3 sm:p-4 rounded-xl border-4 border-double transition-all duration-200 text-left bg-[#1a0a2a]/50 w-full overflow-hidden ${getOptionStyle(index)}`}
+                    whileHover={{ scale: isAnswered ? 1 : 1.01 }}
+                    whileTap={{ scale: isAnswered ? 1 : 0.99 }}
+                  >
+                    <div className="flex items-center gap-2 sm:gap-3 w-full">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#ff6bff]/20 flex items-center justify-center font-bold text-[#ff6bff] pixel-text glow-pink-subtle flex-shrink-0 text-sm sm:text-base">
+                        {String.fromCharCode(65 + index)}
+                      </div>
+                      <span className="text-sm sm:text-base md:text-lg font-medium text-white pixel-text glow-text break-words leading-tight flex-1 min-w-0">{option}</span>
                     </div>
-                    <span className="text-sm sm:text-base md:text-lg font-medium text-white pixel-text glow-text break-words leading-tight flex-1 min-w-0">{option}</span>
-                  </div>
-                </motion.button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                  </motion.button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
+
+      {/* ============ RACING GAME (ALWAYS MOUNTED, TOGGLE VISIBILITY) ============ */}
+      <div className={`w-full h-screen absolute inset-0 ${gameMode === 'racing' ? 'block z-50' : 'hidden'}`}>
+        {/* Timer overlay for racing */}
+        {gameMode === 'racing' && totalTimeRemaining > 0 && (
+          <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-black/70 text-white px-4 py-2 rounded-lg text-lg font-bold shadow-lg ${getTimeColor()}`}>
+            {formatTime(totalTimeRemaining)}
+          </div>
+        )}
+        <iframe
+          ref={iframeRef}
+          src={gameSrc}
+          width="100%"
+          height="100%"
+          frameBorder="0"
+          allowFullScreen
+          sandbox="allow-scripts allow-same-origin"
+          title="Racing Game"
+          className="z-0"
+        />
+      </div>
+
       <style jsx>{`
         .pixel-text { image-rendering: pixelated; text-shadow: 2px 2px 0px #000; }
         .pixel-card { box-shadow: 8px 8px 0px rgba(0, 0, 0, 0.8), 0 0 20px rgba(255, 107, 255, 0.3); }
