@@ -1,10 +1,10 @@
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Stress Test | Crazy Race",
+    title: "Test | Crazy Race",
 };
 
-export default function StressTestLayout({
+export default function TestLayout({
     children,
 }: {
     children: React.ReactNode;

@@ -219,6 +219,9 @@ importers:
       '@types/react-icons':
         specifier: ^2.2.7
         version: 2.2.7
+      baseline-browser-mapping:
+        specifier: ^2.9.12
+        version: 2.9.13
       postcss:
         specifier: ^8.5
         version: 8.5.6
@@ -1926,8 +1929,8 @@ packages:
   barcode-detector@3.0.6:
     resolution: {integrity: sha512-v4xTr6B+FINl/p1RDl38qzIwF+Repfo+k/a/HlKTJKAJpNvACD6v7AH7LSPvfR4AdzXXuwai04huA4TWn02Znw==}
 
-  baseline-browser-mapping@2.8.13:
-    resolution: {integrity: sha512-7s16KR8io8nIBWQyCYhmFhd+ebIzb9VKTzki+wOJXHTxTnV6+mFGH3+Jwn1zoKaY9/H9T/0BcKCZnzXljPnpSQ==}
+  baseline-browser-mapping@2.9.13:
+    resolution: {integrity: sha512-WhtvB2NG2wjr04+h77sg3klAIwrgOqnjS49GGudnUPGFFgg7G17y7Qecqp+2Dr5kUDxNRBca0SK7cG8JwzkWDQ==}
     hasBin: true
 
   big.js@5.2.2:
@@ -5547,7 +5550,7 @@ snapshots:
     transitivePeerDependencies:
       - '@types/emscripten'
 
-  baseline-browser-mapping@2.8.13: {}
+  baseline-browser-mapping@2.9.13: {}
 
   big.js@5.2.2: {}
 
@@ -5566,7 +5569,7 @@ snapshots:
 
   browserslist@4.26.3:
     dependencies:
-      baseline-browser-mapping: 2.8.13
+      baseline-browser-mapping: 2.9.13
       caniuse-lite: 1.0.30001748
       electron-to-chromium: 1.5.233
       node-releases: 2.0.23

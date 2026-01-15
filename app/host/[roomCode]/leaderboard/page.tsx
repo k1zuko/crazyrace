@@ -10,10 +10,11 @@ import { breakOnCaps } from "@/utils/game"
 import Image from "next/image"
 import { HomeIcon, RotateCwIcon } from "lucide-react"
 import { generateGamePin } from "../../page"
-import { shuffleArray } from "../settings/page"
+import { shuffleArray } from "../settings/settings-form"
 import { useAuth } from "@/contexts/authContext"
 import { t } from "i18next"
 import { useHostGuard } from "@/lib/host-guard"
+import { useGlobalLoading } from "@/contexts/globalLoadingContext"
 
 const APP_NAME = "crazyrace"; // Safety check for multi-tenant DB
 
@@ -49,12 +50,14 @@ export default function HostLeaderboardPage() {
 
   // Security: Verify host access
   useHostGuard(roomCode);
+  const { hideLoading } = useGlobalLoading();
 
   const [loading, setLoading] = useState(true);
   const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [currentBgIndex, setCurrentBgIndex] = useState(0);
   const [session, setSession] = useState<any>(null); // TAMBAHKAN INI DI ATAS
+  const [isRestarting, setIsRestarting] = useState(false);
 
   const computePlayerStats = (response: any, totalQuestions: number): Omit<PlayerStats, 'nickname' | 'car' | 'rank'> => {
     const stats = response || {};
@@ -140,6 +143,7 @@ export default function HostLeaderboardPage() {
       setError("Gagal memuat leaderboard");
     } finally {
       setLoading(false);
+      hideLoading();
     }
   }, [roomCode]);
 
@@ -226,6 +230,9 @@ export default function HostLeaderboardPage() {
   }, []);
 
   const restartGame = async () => {
+    if (isRestarting) return; // Prevent double click
+    setIsRestarting(true);
+
     try {
       // 1. Ambil session lama dari mysupa
       const { data: oldSess } = await mysupa
@@ -288,6 +295,7 @@ export default function HostLeaderboardPage() {
     } catch (err: any) {
       console.error("Restart gagal:", err);
       alert("Gagal restart game: " + err.message);
+      setIsRestarting(false);
     }
   };
 
@@ -431,7 +439,7 @@ export default function HostLeaderboardPage() {
                     className="w-20 lg:w-40 mx-auto object-contain animate-neon-bounce filter brightness-125 contrast-150"
                   />
                   <div className="text-xl lg:text-2xl font-bold text-[#00ffff] mb-1 sm:mb-2 pixel-text glow-cyan">{topThree[1].finalScore}</div>
-                  <h3 className="text-base lg:text-xl font-bold text-white pixel-text glow-text break-words line-clamp-3">{breakOnCaps(topThree[1].nickname)}</h3>
+                  <h3 className="text-base lg:text-xl font-bold text-white pixel-text glow-text break-words line-clamp-3" title={topThree[1].nickname}>{breakOnCaps(topThree[1].nickname)}</h3>
                 </Card>
               </motion.div>
             )}
@@ -452,7 +460,7 @@ export default function HostLeaderboardPage() {
                     className="w-30 lg:w-40 mx-auto object-contain animate-neon-bounce filter brightness-125 contrast-150"
                   />
                   <div className="text-2xl lg:text-4xl font-bold text-[#00ffff] mb-2 pixel-text glow-cyan">{topThree[0].finalScore}</div>
-                  <h3 className="text-xl lg:text-2xl font-bold text-white pixel-text glow-text break-words line-clamp-3">{breakOnCaps(topThree[0].nickname)}</h3>
+                  <h3 className="text-xl lg:text-2xl font-bold text-white pixel-text glow-text break-words line-clamp-3" title={topThree[0].nickname}>{breakOnCaps(topThree[0].nickname)}</h3>
                 </Card>
               </motion.div>
             )}
@@ -473,7 +481,7 @@ export default function HostLeaderboardPage() {
                     className="w-20 lg:w-40 mx-auto object-contain animate-neon-bounce filter brightness-125 contrast-150"
                   />
                   <div className="text-xl lg:text-2xl font-bold text-[#00ffff] mb-1 sm:mb-2 pixel-text glow-cyan">{topThree[2].finalScore}</div>
-                  <h3 className="text-base lg:text-lg font-bold text-white pixel-text glow-text break-words line-clamp-3">{breakOnCaps(topThree[2].nickname)}</h3>
+                  <h3 className="text-base lg:text-lg font-bold text-white pixel-text glow-text break-words line-clamp-3" title={topThree[2].nickname}>{breakOnCaps(topThree[2].nickname)}</h3>
                 </Card>
               </motion.div>
             )}
@@ -499,7 +507,7 @@ export default function HostLeaderboardPage() {
                       <div className={`text-sm font-bold ${getRankColor(player.rank)} pixel-text min-w-[22px]`}>
                         #{player.rank}
                       </div>
-                      <h4 className="text-sm font-bold text-white pixel-text glow-text break-words line-clamp-2 flex-1 min-w-0 pl-1">
+                      <h4 className="text-sm font-bold text-white pixel-text glow-text break-words line-clamp-2 flex-1 min-w-0 pl-1" title={player.nickname}>
                         {breakOnCaps(player.nickname)}
                       </h4>
                     </div>
@@ -533,7 +541,7 @@ export default function HostLeaderboardPage() {
                         <div className={`text-xl font-bold ${getRankColor(player.rank)} pixel-text`}>
                           #{player.rank}
                         </div>
-                        <h4 className="text-lg font-bold text-white pixel-text glow-text break-words line-clamp-2 pl-1">{breakOnCaps(player.nickname)}</h4>
+                        <h4 className="text-lg font-bold text-white pixel-text glow-text break-words line-clamp-2 pl-1" title={player.nickname}>{breakOnCaps(player.nickname)}</h4>
                       </div>
                       <div className="flex items-center space-x-6 text-sm">
                         <div className="text-center">
@@ -565,9 +573,16 @@ export default function HostLeaderboardPage() {
             {/* Tombol Restart */}
             <button
               onClick={restartGame}
-              className="pointer-events-auto flex items-center justify-center w-12 h-12 rounded-full bg-[#ff6bff]/70 border border-white text-white hover:bg-[#ff8aff]/80 transition-all duration-300 shadow-lg"
+              disabled={isRestarting}
+              className={`pointer-events-auto flex items-center justify-center w-12 h-12 rounded-full bg-[#ff6bff]/70 border border-white text-white hover:bg-[#ff8aff]/80 transition-all duration-300 shadow-lg ${isRestarting ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <RotateCwIcon className="w-6 h-6" />
+              {isRestarting ? (
+                <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                  <RotateCwIcon className="w-6 h-6" />
+                </motion.div>
+              ) : (
+                <RotateCwIcon className="w-6 h-6" />
+              )}
             </button>
           </motion.div>
 
@@ -584,9 +599,15 @@ export default function HostLeaderboardPage() {
             {/* Tombol Restart */}
             <button
               onClick={restartGame}
-              className="bg-[#ff6bff] border border-white rounded-lg text-white px-4 py-2 text-sm hover:bg-[#ff8aff]/80 transition-all duration-300"
+              disabled={isRestarting}
+              className={`bg-[#ff6bff] border border-white rounded-lg text-white px-4 py-2 text-sm hover:bg-[#ff8aff]/80 transition-all duration-300 flex items-center gap-2 ${isRestarting ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              {t('resulthost.restart')}
+              {isRestarting && (
+                <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                  <RotateCwIcon className="w-4 h-4" />
+                </motion.div>
+              )}
+              {isRestarting ? 'Restarting...' : t('resulthost.restart')}
             </button>
           </div>
 

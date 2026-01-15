@@ -8,6 +8,7 @@ import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { mysupa, supabase } from "@/lib/supabase"
 import LoadingRetro from "@/components/loadingRetro"
+import { useGlobalLoading } from "@/contexts/globalLoadingContext"
 import { breakOnCaps } from "@/utils/game"
 import Image from "next/image"
 import { t } from "i18next"
@@ -36,12 +37,14 @@ type PlayerStats = {
   accuracy: string
   totalTime: string
   participantId: string
+  duration: number
 }
 
 export default function PlayerResultsPage() {
   const params = useParams()
   const router = useRouter()
   const roomCode = params.roomCode as string
+  const { hideLoading } = useGlobalLoading();
   const [participantId, setParticipantId] = useState<string>("");
 
   const [loading, setLoading] = useState(true)
@@ -49,6 +52,9 @@ export default function PlayerResultsPage() {
   const [error, setError] = useState<string | null>(null)
   const [currentBgIndex, setCurrentBgIndex] = useState(0)
   const hasBootstrapped = useRef(false);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [isGameFinished, setIsGameFinished] = useState(false);
+  const [playerRank, setPlayerRank] = useState<number | null>(null);
 
   useEffect(() => {
     const pid = localStorage.getItem("participantId") || "";
@@ -68,14 +74,18 @@ export default function PlayerResultsPage() {
         setLoading(true);
         setError(null);
 
-        // 1. Ambil session dari mysupa (cuma buat ambil total soal & waktu)
+        // 1. Ambil session dari mysupa (cuma buat ambil total soal & waktu & status)
         const { data: sess, error: sessErr } = await mysupa
           .from("sessions")
-          .select("question_limit, total_time_minutes, current_questions")
+          .select("id, question_limit, total_time_minutes, current_questions, status")
           .eq("game_pin", roomCode)
           .single();
 
         if (sessErr || !sess) throw new Error("Session tidak ditemukan");
+
+        setSessionId(sess.id);
+        const isFinished = sess.status === 'finished';
+        setIsGameFinished(isFinished);
 
         const totalQuestions = sess.question_limit || (sess.current_questions || []).length;
         const gameDuration = (sess.total_time_minutes || 5) * 60;
@@ -88,6 +98,15 @@ export default function PlayerResultsPage() {
           .single();
 
         if (partErr || !participant) throw new Error("Data kamu tidak ditemukan");
+
+        // Hitung rank jika game sudah selesai
+        let rank: number | null = null;
+        if (isFinished) {
+          rank = await calculateRank(sess.id, participantId, participant.score || 0, participant.duration || 9999);
+          setPlayerRank(rank);
+        }
+
+
 
         // 3. Hitung statistik
         const correctCount = participant.correct || 0;
@@ -113,9 +132,11 @@ export default function PlayerResultsPage() {
           accuracy,
           totalTime,
           participantId,
+          duration: participant.duration || 0,
         });
 
         setLoading(false);
+        hideLoading();
       } catch (err: any) {
         console.error("Error load result:", err);
         setError("Gagal memuat hasil. Coba refresh.");
@@ -130,6 +151,68 @@ export default function PlayerResultsPage() {
     };
   }, [roomCode, participantId]);
 
+  // Function to calculate rank
+  const calculateRank = async (sessId: string, myParticipantId: string, myScore: number, myDuration: number): Promise<number> => {
+    try {
+      // Ambil semua participant yang sudah completion = true
+      const { data: participants, error } = await mysupa
+        .from("participants")
+        .select("id, score, duration")
+        .eq("session_id", sessId)
+        .eq("completion", true);
+
+      if (error || !participants) return 1;
+
+      // Sort: skor tinggi → waktu cepat
+      const sorted = participants.sort((a, b) => {
+        const scoreA = a.score || 0;
+        const scoreB = b.score || 0;
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return (a.duration || 9999) - (b.duration || 9999);
+      });
+
+      // Cari rank player
+      const rankIndex = sorted.findIndex(p => p.id === myParticipantId);
+      return rankIndex !== -1 ? rankIndex + 1 : sorted.length + 1;
+    } catch (err) {
+      console.error("Error calculating rank:", err);
+      return 1;
+    }
+  };
+
+  // Subscribe to session status changes
+  useEffect(() => {
+    if (!sessionId || isGameFinished) return;
+
+    const channel = mysupa
+      .channel(`session-status-${sessionId}`)
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "sessions",
+        filter: `id=eq.${sessionId}`
+      }, async (payload) => {
+        const newSession = payload.new as any;
+        if (newSession.status === 'finished') {
+          setIsGameFinished(true);
+          // Calculate rank
+          if (currentPlayerStats) {
+            const rank = await calculateRank(
+              sessionId,
+              currentPlayerStats.participantId,
+              currentPlayerStats.finalScore,
+              currentPlayerStats.duration
+            );
+            setPlayerRank(rank);
+          }
+        }
+      })
+      .subscribe();
+
+    return () => {
+      mysupa.removeChannel(channel);
+    };
+  }, [sessionId, isGameFinished, currentPlayerStats]);
 
   // Background cycling
   useEffect(() => {
@@ -210,6 +293,27 @@ export default function PlayerResultsPage() {
           transition={{ duration: 0.8, delay: 0.2 }}
         >
           <Card className="bg-[#1a0a2a]/60 border-[#ff6bff]/40 backdrop-blur-xs pixel-card p-7 md:p-10 mb-4 text-center animate-neon-pulse-pink">
+            {/* Rank Display */}
+            <div className="mt-3">
+              {isGameFinished && playerRank !== null ? (
+                <motion.div
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.5, type: "spring" }}
+                  className={`text-3xl md:text-5xl font-bold pixel-text ${playerRank === 1 ? 'text-yellow-400 glow-gold' :
+                    playerRank === 2 ? 'text-gray-300 glow-silver' :
+                      playerRank === 3 ? 'text-amber-600 glow-bronze' :
+                        'text-[#00ffff] glow-cyan'
+                    }`}
+                >
+                  #{playerRank}
+                </motion.div>
+              ) : (
+                <div className="text-3xl md:text-5xl font-bold text-[#888888] pixel-text animate-pulse">
+                  #?
+                </div>
+              )}
+            </div>
             <div className="flex flex-col items-center justify-center space-x-2">
               <img
                 src={carGifMap[car] || '/assets/car/car5_v2.webp'}
@@ -313,6 +417,15 @@ export default function PlayerResultsPage() {
         }
         .glow-yellow {
           filter: drop-shadow(0 0 10px #ffd700);
+        }
+        .glow-gold {
+          filter: drop-shadow(0 0 15px #ffd700);
+        }
+        .glow-silver {
+          filter: drop-shadow(0 0 12px #d1d5db);
+        }
+        .glow-bronze {
+          filter: drop-shadow(0 0 12px #b45309);
         }
         .glow-text {
           filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));

@@ -23,7 +23,7 @@ import {
   ScanLine,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { mysupa, supabase } from "@/lib/supabase";
@@ -271,8 +271,10 @@ export default function HomePage() {
       try {
         let nick = generateNickname();
 
-        // ✅ Priority order: fullname > username > fallback
-        if (profile?.fullname && profile.fullname.trim()) {
+        // ✅ Priority order: nickname > fullname > username > email > fallback
+        if (profile?.nickname && profile.nickname.trim()) {
+          nick = profile.nickname;
+        } else if (profile?.fullname && profile.fullname.trim()) {
           nick = profile.fullname;
         } else if (profile?.username && profile.username.trim()) {
           nick = profile.username;
@@ -299,11 +301,7 @@ export default function HomePage() {
   useEffect(() => {
     if (authLoading) return;
     const codelink = localStorage.getItem("roomCode");
-    const code = searchParams.get("code");
-    if (code) {
-      setRoomCode(code.toUpperCase());
-      router.replace(pathname, undefined);
-    } else if (codelink) {
+    if (codelink && codelink.length === 6) {
       setRoomCode(codelink.toUpperCase());
     }
     if (
@@ -315,6 +313,21 @@ export default function HomePage() {
       window.history.replaceState({}, document.title, url.toString());
     }
   }, [authLoading, user, searchParams, pathname, router]);
+
+  // Auto-join effect: jika ada pendingRoomCode, redirect ke join page untuk handle
+  const autoJoinAttempted = useRef(false);
+  useEffect(() => {
+    if (authLoading || autoJoinAttempted.current) return;
+
+    const pendingCode = localStorage.getItem("pendingRoomCode");
+    if (!pendingCode) return;
+
+    // Ada pending code dan user sudah login → redirect ke join page untuk auto-join
+    if (user && profile?.id && !profile.id.startsWith('fallback-')) {
+      autoJoinAttempted.current = true;
+      router.replace(`/join/${pendingCode}`);
+    }
+  }, [authLoading, user, profile, router]);
 
   // REFACTORED: Uses the 'join_game_session' RPC for a safe, atomic join process.
   const handleJoin = async () => {
@@ -409,17 +422,6 @@ export default function HomePage() {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
-  const handleTryout = () => {
-    if (!nickname.trim()) {
-      setAlertReason("nickname");
-      setShowAlert(true);
-      return;
-    }
-    setJoining(true);
-    localStorage.setItem("tryout_nickname", nickname.trim());
-    router.push("/tryout");
-  };
-
   const { isLoaded, progress } = usePreloaderScreen();
   if (!isLoaded) return <LoadingRetroScreen progress={progress} />;
 
@@ -447,7 +449,7 @@ export default function HomePage() {
         src="/assets/background/1.webp"
         alt="Crazy Race Background"
         fill
-        className="object-cover"
+        className="object-cover fixed -z-10"
         priority
       />
       <h1 className="absolute top-6 md:top-4 left-4 w-42 md:w-50 lg:w-100">
@@ -556,7 +558,8 @@ export default function HomePage() {
                     />
                   ) : (
                     <span className="text-xl font-bold text-white pixel-text">
-                      {profile?.fullname?.charAt(0)?.toUpperCase() ||
+                      {profile?.nickname?.charAt(0)?.toUpperCase() ||
+                        profile?.fullname?.charAt(0)?.toUpperCase() ||
                         profile?.username?.charAt(0)?.toUpperCase() ||
                         user?.email?.charAt(0)?.toUpperCase() ||
                         "U"}
@@ -565,7 +568,8 @@ export default function HomePage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-[#00ffff] pixel-text truncate">
-                    {profile?.fullname ||
+                    {profile?.nickname ||
+                      profile?.fullname ||
                       profile?.username ||
                       user?.email?.split("@")[0] ||
                       t("menu.user")}
@@ -589,7 +593,7 @@ export default function HomePage() {
                   setShowHowToPlay(true);
                   setIsMenuOpen(false);
                 }}
-                className="w-full p-2 bg-[#1a0a2a]/60 border-2 border-[#ff6bff]/50 hover:border-[#ff6bff] pixel-button hover:bg-[#ff6bff]/20 glow-pink-subtle rounded text-center"
+                className="w-full p-2 bg-[#1a0a2a]/60 border-2 border-[#00ffff]/50 hover:border-[#00ffff] pixel-button hover:bg-[#00ffff]/20 glow-cyan-subtle rounded text-center"
               >
                 <div className="flex items-center justify-center gap-2">
                   <span className="text-xs text-[#00ffff] pixel-text glow-cyan">
@@ -597,56 +601,6 @@ export default function HomePage() {
                   </span>
                 </div>
               </button>
-              <button
-                onClick={() => setShowTryoutInput(!showTryoutInput)}
-                className="w-full p-2 bg-[#1a0a2a]/60 border-2 border-[#ff6bff]/50 hover:border-[#ff6bff] pixel-button hover:bg-[#ff6bff]/20 glow-pink-subtle rounded text-center"
-              >
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-xs text-[#ff6bff] pixel-text glow-pink">
-                    {t("menu.soloTryout")}
-                  </span>
-                </div>
-              </button>
-              <AnimatePresence>
-                {showTryoutInput && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="space-y-2 overflow-hidden"
-                  >
-                    <div className="relative">
-                      <Input
-                        placeholder={t("joinRace.nicknamePlaceholder")}
-                        value={nickname}
-                        maxLength={15}
-                        onChange={(e) => setNickname(e.target.value)}
-                        className="bg-[#1a0a2a]/50 border-[#ff6bff]/50 text-[#ff6bff] placeholder:text-[#ff6bff]/50 text-center text-xs pixel-text h-8 rounded focus:border-[#ff6bff] focus:ring-[#ff6bff]/30 pr-8"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setNickname(generateNickname())}
-                        className="absolute right-1 top-1/2 transform -translate-y-1/2 text-[#ff6bff] hover:bg-[#ff6bff]/20 hover:border-[#ff6bff] transition-all duration-200 glow-pink-subtle p-1"
-                      >
-                        <span className="text-sm">🎲</span>
-                      </button>
-                    </div>
-                    <Button
-                      onClick={() => {
-                        handleTryout();
-                        setIsMenuOpen(false);
-                      }}
-                      disabled={joining}
-                      className={`w-full text-xs ${joining
-                        ? "opacity-50 cursor-not-allowed"
-                        : "bg-gradient-to-r from-[#ff6bff] to-[#ff6bff] hover:from-[#ff8aff] hover:to-[#ffb3ff] text-white border-[#ff6bff]/80 hover:border-[#ff8aff]/80 glow-pink cursor-pointer"
-                        } pixel-button`}
-                    >
-                      {joining ? t("menu.starting") : t("menu.tryoutButton")}
-                    </Button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
               <button
                 disabled={isInstalled || !installPrompt}
                 onClick={handlePWAInstall}

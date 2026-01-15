@@ -12,6 +12,7 @@ import { mysupa, supabase } from "@/lib/supabase" // ← Ganti ke mysupa kamu
 import { formatTime, breakOnCaps } from "@/utils/game"
 import { syncServerTime, getSyncedServerTime } from "@/utils/serverTime"
 import LoadingRetro from "@/components/loadingRetro"
+import { useGlobalLoading } from "@/contexts/globalLoadingContext"
 import Image from "next/image"
 import { Dialog, DialogContent, DialogOverlay, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { generateXID } from "@/lib/id-generator"
@@ -35,6 +36,7 @@ export default function HostMonitorPage() {
 
   // Security: Verify host access
   useHostGuard(roomCode);
+  const { hideLoading, showLoading } = useGlobalLoading();
 
   const [session, setSession] = useState<any>(null);
   const [participants, setParticipants] = useState<any[]>([]);
@@ -42,10 +44,18 @@ export default function HostMonitorPage() {
   const [gameDuration, setGameDuration] = useState(300);
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true); // Default muted
   const audioRef = useRef<HTMLAudioElement>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [isEndGameConfirmOpen, setEndGameConfirmOpen] = useState(false);
+
+  // Cursor-based pagination states
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const pageSize = 50;
+  const loaderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { syncServerTime(); }, []);
 
@@ -211,11 +221,13 @@ export default function HostMonitorPage() {
       setTotalQuestions(qCount);
       setGameDuration((sess.total_time_minutes || 5) * 60);
 
-      // 2. Fetch participants
-      const { data: parts } = await mysupa
+      // 2. Fetch participants (cursor-based)
+      const { data: parts, count } = await mysupa
         .from("participants")
-        .select("id, nickname, car, score, correct, current_question, completion, answers, joined_at")
-        .eq("session_id", sess.id);
+        .select("id, nickname, car, score, correct, current_question, completion, answers, joined_at", { count: "exact" })
+        .eq("session_id", sess.id)
+        .order("joined_at", { ascending: true })
+        .limit(pageSize);
 
       const mapped = (parts || []).map((p: any) => ({
         id: p.id,
@@ -230,7 +242,18 @@ export default function HostMonitorPage() {
       }));
 
       setParticipants(mapped);
+      setTotalCount(count || 0);
+
+      // Set cursor and hasMore
+      if (parts && parts.length > 0) {
+        setCursor(parts[parts.length - 1].joined_at);
+        setHasMore(parts.length >= pageSize);
+      } else {
+        setHasMore(false);
+      }
+
       setLoading(false);
+      hideLoading();
 
       // 3. Realtime session
       sessionChan = mysupa
@@ -340,27 +363,87 @@ export default function HostMonitorPage() {
     return "text-[#00ffff] glow-cyan";
   };
 
+  // Load more participants using cursor
+  const loadMore = useCallback(async () => {
+    if (!session?.id || !cursor || isLoadingMore || !hasMore) return;
+
+    setIsLoadingMore(true);
+    const { data: more } = await mysupa
+      .from("participants")
+      .select("id, nickname, car, score, correct, current_question, completion, answers, joined_at")
+      .eq("session_id", session.id)
+      .gt("joined_at", cursor)
+      .order("joined_at", { ascending: true })
+      .limit(pageSize);
+
+    if (more && more.length > 0) {
+      const mapped = more.map((p: any) => ({
+        id: p.id,
+        nickname: p.nickname,
+        car: p.car || "blue",
+        score: p.score || 0,
+        correct: p.correct || 0,
+        currentQuestion: p.current_question || 0,
+        answersCount: (p.answers || []).length,
+        isComplete: p.completion === true,
+        joinedAt: p.joined_at,
+      }));
+      setParticipants(prev => [...prev, ...mapped]);
+      setCursor(more[more.length - 1].joined_at);
+      setHasMore(more.length >= pageSize);
+    } else {
+      setHasMore(false);
+    }
+    setIsLoadingMore(false);
+  }, [session?.id, cursor, isLoadingMore, hasMore, pageSize]);
+
+  // Infinite scroll: observe loader element
+  useEffect(() => {
+    const loader = loaderRef.current;
+    if (!loader) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(loader);
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, loadMore]);
+
   // ✅ FIX: handleEndGame sudah dipindahkan ke atas (sebelum updateTimer)
 
-  // Audio sama kayak sebelumnya
+  // Audio control - only play/pause on mute toggle, no autoplay
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    const tryPlay = async () => {
-      try { audio.muted = isMuted; await audio.play(); setHasInteracted(true); }
-      catch { document.addEventListener("click", () => { audio.play().catch(() => { }); }, { once: true }); }
-    };
-    tryPlay();
-  }, [hasInteracted, isMuted]);
+    audio.volume = 0.5; // Default 50% volume
 
-  useEffect(() => { if (audioRef.current) audioRef.current.muted = isMuted; }, [isMuted]);
+    if (isMuted) {
+      audio.pause();
+    } else {
+      audio.play().catch(() => console.warn("Audio play blocked"));
+    }
+  }, [isMuted]);
 
   if (loading) return <LoadingRetro />;
 
   return (
     <div className="h-screen bg-[#1a0a2a] relative overflow-hidden">
       <audio ref={audioRef} src="/assets/music/racingprogress.mp3" loop preload="auto" className="hidden" />
-      <div className="absolute inset-0 w-full h-full bg-cover bg-center" style={{ backgroundImage: `url(${backgroundImage})` }} />
+      <div
+        className="fixed inset-0 w-full h-full"
+        style={{
+          backgroundImage: `url(${backgroundImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      />
 
       {/* Scrollable Content Wrapper */}
       <div className="absolute inset-0 overflow-y-auto z-10">
@@ -447,7 +530,7 @@ export default function HostMonitorPage() {
                             <img src={carGifMap[player.car] || '/assets/car/car5_v2.webp'} alt="car" className="h-28 w-40 mx-auto object-contain animate-neon-bounce filter brightness-125 contrast-150" style={{ transform: 'scaleX(-1)' }} />
                           </div>
                           <div className="text-center">
-                            <h3 className="text-white pixel-text text-sm leading-tight mb-2 line-clamp-2 break-words">{breakOnCaps(player.nickname)}</h3>
+                            <h3 className="text-white pixel-text text-sm leading-tight mb-2 line-clamp-2 break-words" title={player.nickname}>{breakOnCaps(player.nickname)}</h3>
                             <Progress value={(progress / totalQuestions) * 100} className={`h-2 bg-[#1a0a2a]/50 border border-[#00ffff]/30 mb-2 ${isCompleted ? "bg-green-500/20" : ""}`} />
                           </div>
                         </Card>
@@ -460,6 +543,12 @@ export default function HostMonitorPage() {
                 <div className="text-center py-8 text-gray-400">
                   <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>{t('monitor.noPlayers')}</p>
+                </div>
+              )}
+              {/* Infinite Scroll Loader */}
+              {hasMore && participants.length < totalCount && (
+                <div ref={loaderRef} className="flex justify-center items-center py-4">
+                  <span className="text-[#00ffff] text-sm pixel-text">Loading more...</span>
                 </div>
               )}
             </Card>

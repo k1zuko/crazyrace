@@ -8,6 +8,7 @@ import { useParams, useRouter } from "next/navigation"
 import { mysupa, supabase } from "@/lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
 import LoadingRetro from "@/components/loadingRetro"
+import { useGlobalLoading } from "@/contexts/globalLoadingContext"
 import { formatTime } from "@/utils/game"
 import { syncServerTime, getSyncedServerTime } from "@/utils/serverTime"
 import { generateXID } from "@/lib/id-generator"
@@ -37,10 +38,12 @@ export default function QuizGamePage() {
   const params = useParams()
   const router = useRouter()
   const roomCode = params.roomCode as string
+  const { hideLoading } = useGlobalLoading();
 
   // ============ GAME MODE STATE ============
   const [gameMode, setGameMode] = useState<GameMode>('quiz');
   const [gameSrc, setGameSrc] = useState('/racing-game/v4.final.html');
+  const [racingKey, setRacingKey] = useState(0); // Force iframe remount on each new race
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // ============ QUIZ STATES ============
@@ -144,6 +147,7 @@ export default function QuizGamePage() {
           localStorage.setItem(cachedQuestionsKey, JSON.stringify(prefetched.questions));
 
           setLoading(false);
+          hideLoading();
           return;
         } else {
           sessionStorage.removeItem(prefetchKey);
@@ -213,6 +217,7 @@ export default function QuizGamePage() {
         setGameDuration((sess.total_time_minutes || 5) * 60);
         setGameStartTime(new Date(sess.started_at).getTime());
         setLoading(false);
+        hideLoading();
         return;
       }
 
@@ -285,6 +290,7 @@ export default function QuizGamePage() {
       setGameDuration((sess.total_time_minutes || 5) * 60);
       setGameStartTime(new Date(sess.started_at).getTime());
       setLoading(false);
+      hideLoading();
 
     } catch (err: any) {
       console.error("Fetch error:", err);
@@ -495,6 +501,7 @@ export default function QuizGamePage() {
     } else if (isRacing) {
       // ✅ INSTANT: Switch to racing mode (no navigation!)
       setCurrentQuestionIndex(nextIndex);
+      setRacingKey(prev => prev + 1); // Force iframe remount to reset game state
       setGameMode('racing');
     } else {
       setCurrentQuestionIndex(nextIndex);
@@ -521,7 +528,7 @@ export default function QuizGamePage() {
   };
 
   const getTimeColor = () => {
-    if (totalTimeRemaining <= 10) return "text-red-500";
+    if (totalTimeRemaining <= 10) return "text-red-500 glow-red animate-pulse";
     if (totalTimeRemaining <= 20) return "text-[#ff6bff] glow-pink-subtle";
     return "text-[#00ffff] glow-cyan";
   };
@@ -539,8 +546,13 @@ export default function QuizGamePage() {
         <AnimatePresence mode="wait">
           <motion.div
             key={currentBgIndex}
-            className="absolute inset-0 w-full h-full bg-cover bg-center"
-            style={{ backgroundImage: `url(${backgroundGifs[currentBgIndex]})` }}
+            className="fixed inset-0 w-full h-full"
+            style={{
+              backgroundImage: `url(${backgroundGifs[currentBgIndex]})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat'
+            }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -612,6 +624,7 @@ export default function QuizGamePage() {
           </div>
         )}
         <iframe
+          key={racingKey}
           ref={iframeRef}
           src={gameSrc}
           width="100%"
@@ -630,6 +643,7 @@ export default function QuizGamePage() {
         .glow-cyan { filter: drop-shadow(0 0 10px #00ffff); }
         .glow-pink-subtle { animation: neon-pulse-pink 1.5s ease-in-out infinite; }
         .glow-green { filter: drop-shadow(0 0 10px rgba(0, 255, 0, 0.8)); }
+        .glow-red { filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.8)); }
         .glow-text { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)); }
         .animate-neon-pulse { animation: neon-pulse 1.5s ease-in-out infinite; }
         @keyframes neon-pulse {

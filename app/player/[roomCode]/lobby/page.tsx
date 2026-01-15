@@ -9,6 +9,7 @@ import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { mysupa, supabase } from "@/lib/supabase"
 import LoadingRetro from "@/components/loadingRetro"
+import { useGlobalLoading } from "@/contexts/globalLoadingContext"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogOverlay, DialogTitle } from "@/components/ui/dialog"
 
 import Image from "next/image"
@@ -51,6 +52,7 @@ export default function LobbyPage() {
   const params = useParams()
   const router = useRouter()
   const roomCode = params.roomCode as string
+  const { hideLoading } = useGlobalLoading()
 
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -70,6 +72,14 @@ export default function LobbyPage() {
   const [showExitDialog, setShowExitDialog] = useState(false)
   const hasBootstrapped = useRef(false);
   const hasPreloaded = useRef(false); // ✅ Track if assets already preloaded
+
+  // Cursor-based pagination states
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const pageSize = 20;
+  const loaderRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     syncServerTime()
@@ -296,6 +306,47 @@ export default function LobbyPage() {
     }
   };
 
+  // Load more participants using cursor
+  const loadMore = useCallback(async () => {
+    if (!session?.id || !cursor || isLoadingMore || !hasMore) return;
+
+    setIsLoadingMore(true);
+    const { data: more } = await mysupa
+      .from("participants")
+      .select("*")
+      .eq("session_id", session.id)
+      .gt("joined_at", cursor)
+      .order("joined_at", { ascending: true })
+      .limit(pageSize);
+
+    if (more && more.length > 0) {
+      setParticipants(prev => [...prev, ...more]);
+      setCursor(more[more.length - 1].joined_at);
+      setHasMore(more.length >= pageSize);
+    } else {
+      setHasMore(false);
+    }
+    setIsLoadingMore(false);
+  }, [session?.id, cursor, isLoadingMore, hasMore, pageSize]);
+
+  // Infinite scroll: observe loader element
+  useEffect(() => {
+    const loader = loaderRef.current;
+    if (!loader) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(loader);
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, loadMore]);
+
   useEffect(() => {
     if (hasBootstrapped.current || !roomCode) return;
     hasBootstrapped.current = true;
@@ -333,13 +384,24 @@ export default function LobbyPage() {
         stopCountdownSync();
       }
 
-      // Fetch participants separately
-      const { data: fetchedParticipants } = await mysupa
+      // Fetch participants (cursor-based)
+      const { data: fetchedParticipants, count } = await mysupa
         .from("participants")
-        .select("*")
-        .eq("session_id", fetchedSession.id);
+        .select("*", { count: "exact" })
+        .eq("session_id", fetchedSession.id)
+        .order("joined_at", { ascending: true })
+        .limit(pageSize);
 
       setParticipants(fetchedParticipants ?? []);
+      setTotalCount(count || 0);
+
+      // Set cursor and hasMore
+      if (fetchedParticipants && fetchedParticipants.length > 0) {
+        setCursor(fetchedParticipants[fetchedParticipants.length - 1].joined_at);
+        setHasMore(fetchedParticipants.length >= pageSize);
+      } else {
+        setHasMore(false);
+      }
 
       const myParticipantId = localStorage.getItem("participantId") || "";
       const me = (fetchedParticipants || []).find((p: any) => p.id === myParticipantId);
@@ -426,6 +488,7 @@ export default function LobbyPage() {
 
 
       setLoading(false);
+      hideLoading(); // Hide global loading (for seamless transition from /join)
     };
 
     bootstrap();
@@ -435,7 +498,7 @@ export default function LobbyPage() {
       if (sessionChannel) mysupa.removeChannel(sessionChannel);
       if (participantsChannel) mysupa.removeChannel(participantsChannel);
     };
-  }, [roomCode, router, startCountdownSync, stopCountdownSync]);
+  }, [roomCode, router, startCountdownSync, stopCountdownSync, hideLoading]);
 
 
   useEffect(() => {
@@ -474,8 +537,13 @@ export default function LobbyPage() {
       <AnimatePresence mode="wait">
         <motion.div
           key={currentBgIndex}
-          className="absolute inset-0 w-full h-full bg-cover bg-center"
-          style={{ backgroundImage: `url(${backgroundGifs[currentBgIndex]})` }}
+          className="fixed inset-0 w-full h-full"
+          style={{
+            backgroundImage: `url(${backgroundGifs[currentBgIndex]})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat'
+          }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -512,7 +580,7 @@ export default function LobbyPage() {
                 <motion.div className="relative flex items-center justify-center">
                   <Badge className="absolute bg-[#1a0a2a]/50 border-[#00ffff] text-[#00ffff] p-2 md:text-lg pixel-text glow-cyan top-0 left-0 gap-1 md:gap-3">
                     <Users className="!w-3 !h-3 md:!w-5 md:!h-5" />
-                    {participants.length}
+                    {totalCount}
                   </Badge>
                 </motion.div>
               </CardHeader>
@@ -531,7 +599,7 @@ export default function LobbyPage() {
                         </div>
                         <div className="text-center">
                           <div className="flex items-center justify-center space-x-2 mb-1">
-                            <h3 className="text-white pixel-text text-sm leading-tight line-clamp-2 break-words">
+                            <h3 className="text-white pixel-text text-sm leading-tight line-clamp-2 break-words" title={player.nickname}>
                               {breakOnCaps(player.nickname)}
                             </h3>
                           </div>
@@ -545,6 +613,12 @@ export default function LobbyPage() {
                     </motion.div>
                   ))}
                 </div>
+                {/* Infinite Scroll Loader */}
+                {hasMore && participants.length < totalCount && (
+                  <div ref={loaderRef} className="flex justify-center items-center py-4">
+                    <span className="text-[#00ffff] text-sm pixel-text">Loading more...</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>

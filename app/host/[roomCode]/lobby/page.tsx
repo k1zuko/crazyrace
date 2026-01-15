@@ -20,6 +20,7 @@ import { mysupa, supabase } from "@/lib/supabase";
 import QRCode from "react-qr-code";
 import { Dialog, DialogContent, DialogOverlay } from "@/components/ui/dialog";
 import LoadingRetro from "@/components/loadingRetro";
+import { useGlobalLoading } from "@/contexts/globalLoadingContext";
 import { breakOnCaps, formatUrlBreakable } from "@/utils/game";
 import Image from "next/image";
 import { syncServerTime, getSyncedServerTime } from "@/utils/serverTime";
@@ -46,6 +47,7 @@ export default function HostRoomPage() {
 
   // Security: Verify host access
   useHostGuard(roomCode);
+  const { hideLoading } = useGlobalLoading();
 
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const countdownAudioRef = useRef<HTMLAudioElement>(null);
@@ -57,7 +59,7 @@ export default function HostRoomPage() {
   const [countdown, setCountdown] = useState(0);
 
   const audioRef = useRef<HTMLAudioElement>(null);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true); // Default muted
   const [hasInteracted, setHasInteracted] = useState(false);
 
   const [currentBgIndex, setCurrentBgIndex] = useState(0);
@@ -71,6 +73,15 @@ export default function HostRoomPage() {
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [selectedPlayerName, setSelectedPlayerName] = useState<string>("");
   const [selectedPlayerCar, setSelectedPlayerCar] = useState<string>("");
+
+  // Cursor-based pagination states
+  const [cursor, setCursor] = useState<string | null>(null); // joined_at of last item
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const pageSize = 30;
+  const loaderRef = useRef<HTMLDivElement>(null); // For infinite scroll
+
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -135,55 +146,59 @@ export default function HostRoomPage() {
     setCountdown(0);
   }, []);
 
+  // Load more participants using cursor
+  const loadMore = useCallback(async () => {
+    if (!session?.id || !cursor || isLoadingMore || !hasMore) return;
+
+    setIsLoadingMore(true);
+    const { data: more } = await mysupa
+      .from("participants")
+      .select("id, nickname, car, joined_at")
+      .eq("session_id", session.id)
+      .gt("joined_at", cursor)
+      .order("joined_at", { ascending: true })
+      .limit(pageSize);
+
+    if (more && more.length > 0) {
+      setParticipants(prev => [...prev, ...more]);
+      setCursor(more[more.length - 1].joined_at);
+      setHasMore(more.length >= pageSize);
+    } else {
+      setHasMore(false);
+    }
+    setIsLoadingMore(false);
+  }, [session?.id, cursor, isLoadingMore, hasMore, pageSize]);
+
+  // Infinite scroll: observe loader element
+  useEffect(() => {
+    const loader = loaderRef.current;
+    if (!loader) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(loader);
+    return () => observer.disconnect();
+  }, [hasMore, isLoadingMore, loadMore]);
+
+  // Audio control - only play/pause on mute toggle, no autoplay
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    const startAudio = async () => {
-      if (!hasInteracted) {
-        try {
-          audio.muted = isMuted;
-          await audio.play();
-          setHasInteracted(true);
-          console.log("🔊 Audio started via interaction!");
-        } catch (err) {
-          console.warn("⚠️ Audio play blocked, waiting for interaction...");
-        } finally {
-          // lepas listener apapun hasilnya
-          document.removeEventListener("click", startAudio);
-          document.removeEventListener("keydown", startAudio);
-          document.removeEventListener("scroll", startAudio);
-        }
-      }
-    };
-    const tryAutoplay = async () => {
-      try {
-        audio.muted = isMuted;
-        await audio.play();
-        setHasInteracted(true);
-      } catch {
-        const startAudio = async () => {
-          if (hasInteracted) return;
-          try {
-            audio.muted = isMuted;
-            await audio.play();
-            setHasInteracted(true);
-          } catch (err) {
-            console.warn("Audio play blocked");
-          }
-          document.removeEventListener("click", startAudio);
-        };
-        document.addEventListener("click", startAudio);
-        document.addEventListener("keydown", startAudio);
-        document.addEventListener("scroll", startAudio);
-      }
-    };
-    tryAutoplay();
-    return () => {
-      document.removeEventListener("click", startAudio);
-      document.removeEventListener("keydown", startAudio);
-      document.removeEventListener("scroll", startAudio);
-    };
-  }, [hasInteracted, isMuted]);
+    audio.volume = 0.5; // Default 50% volume
+
+    if (isMuted) {
+      audio.pause();
+    } else {
+      audio.play().catch(() => console.warn("Audio play blocked"));
+    }
+  }, [isMuted]);
 
   useEffect(() => {
     const countdownAudio = countdownAudioRef.current;
@@ -246,17 +261,30 @@ export default function HostRoomPage() {
 
       setSession(sessionData);
       setLoading(false);
+      hideLoading();
 
-      // ⭐ FIRST FETCH PARTICIPANTS
-      const { data: fetchedParticipants, error: pErr } = await mysupa
+      // ⭐ FIRST FETCH PARTICIPANTS (cursor-based)
+      const { data: fetchedParticipants, error: pErr, count } = await mysupa
         .from("participants")
-        .select("id, nickname, car")
-        .eq("session_id", sessionData.id);
+        .select("id, nickname, car, joined_at", { count: "exact" })
+        .eq("session_id", sessionData.id)
+        .order("joined_at", { ascending: true })
+        .limit(pageSize);
 
       if (pErr) console.error("Fetch participants error:", pErr);
       setParticipants(fetchedParticipants || []);
+      setTotalCount(count || 0);
+
+      // Set cursor and hasMore
+      if (fetchedParticipants && fetchedParticipants.length > 0) {
+        setCursor(fetchedParticipants[fetchedParticipants.length - 1].joined_at);
+        setHasMore(fetchedParticipants.length >= pageSize);
+      } else {
+        setHasMore(false);
+      }
 
       setLoading(false);
+      hideLoading();
 
       // Countdown start?
       if (sessionData.countdown_started_at) {
@@ -328,6 +356,7 @@ export default function HostRoomPage() {
               if (prev.some((p) => p.id === payload.new.id)) return prev;
               return [...prev, payload.new];
             });
+            setTotalCount((prev) => prev + 1);
           }
           if (payload.eventType === "UPDATE") {
             setParticipants((prev) =>
@@ -338,6 +367,7 @@ export default function HostRoomPage() {
             setParticipants((prev) =>
               prev.filter((p) => p.id !== payload.old.id)
             );
+            setTotalCount((prev) => Math.max(0, prev - 1));
           }
         }
       )
@@ -435,13 +465,17 @@ export default function HostRoomPage() {
         loop
         preload="auto"
         className="hidden"
-        autoPlay
       />
       <AnimatePresence mode="wait">
         <motion.div
           key={currentBgIndex}
-          className="absolute inset-0 w-full h-full bg-cover bg-center"
-          style={{ backgroundImage: `url(${backgroundGifs[0]})` }}
+          className="fixed inset-0 w-full h-full"
+          style={{
+            backgroundImage: `url(${backgroundGifs[0]})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat'
+          }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -580,11 +614,10 @@ export default function HostRoomPage() {
             <Card className="bg-[#1a0a2a]/60 border-2 sm:border-3 border-[#ff6bff]/50 pixel-card glow-pink-subtle p-4 sm:p-6 md:p-8 lg:col-span-3 order-1 lg:order-2">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-0">
                 <h2 className="text-xl sm:text-2xl font-bold text-[#00ffff] pixel-text glow-cyan text-center sm:text-left">
-                  {participants.length} Player
-                  {participants.length <= 1 ? "" : "s"}
+                  {totalCount} Player{totalCount <= 1 ? "" : "s"}
                 </h2>
               </div>
-              <div className="space-y-4 mb-6 sm:mb-8">
+              <div className="space-y-4">
                 {participants.length === 0 ? (
                   <div className="text-center py-6 sm:py-8 text-gray-400 pixel-text">
                     <Users className="h-8 w-8 sm:h-12 sm:w-12 mx-auto mb-3 sm:mb-4 opacity-50" />
@@ -613,7 +646,7 @@ export default function HostRoomPage() {
                             />
                           </div>
                           <div className="text-center">
-                            <p className="text-white text-xs leading-tight glow-text line-clamp-2 break-words">
+                            <p className="text-white text-xs leading-tight glow-text line-clamp-2 break-words" title={player.nickname}>
                               {breakOnCaps(player.nickname)}
                             </p>
                           </div>
@@ -637,6 +670,12 @@ export default function HostRoomPage() {
                         </div>
                       </motion.div>
                     ))}
+                  </div>
+                )}
+                {/* Infinite Scroll Loader */}
+                {hasMore && participants.length < totalCount && (
+                  <div ref={loaderRef} className="flex justify-center items-center py-4">
+                    <span className="text-[#00ffff] text-sm pixel-text">Loading more...</span>
                   </div>
                 )}
               </div>

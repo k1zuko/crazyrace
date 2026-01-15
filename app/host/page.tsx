@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { mysupa, supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import LoadingRetro from "@/components/loadingRetro"
+import { useGlobalLoading } from "@/contexts/globalLoadingContext"
 import Image from "next/image"
 import { useAuth } from "@/contexts/authContext"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -32,6 +33,7 @@ export function generateGamePin(length = 6) {
 export default function QuestionListPage() {
   const router = useRouter()
   const { user } = useAuth();
+  const { hideLoading, showLoading } = useGlobalLoading();
   const [isMuted, setIsMuted] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchInput, setSearchInput] = useState("");
@@ -149,6 +151,7 @@ export default function QuestionListPage() {
         console.error("Unexpected error:", error);
       } finally {
         setLoading(false);
+        hideLoading();
         setIsFetching(false);
       }
     };
@@ -213,6 +216,7 @@ export default function QuestionListPage() {
     if (creating) return;
     setCreating(true);
     setCreatingQuizId(quizId); // ✅ Track which quiz is being created
+    showLoading(); // ✅ Show global loading
 
     const gamePin = generateGamePin();
     const sessId = generateXID();
@@ -260,6 +264,7 @@ export default function QuestionListPage() {
         }
         setCreating(false);
         setCreatingQuizId(null);
+        hideLoading();
         return;
       }
 
@@ -269,6 +274,7 @@ export default function QuestionListPage() {
         await supabase.from("game_sessions").delete().eq("id", sessId);
         setCreating(false);
         setCreatingQuizId(null);
+        hideLoading();
         return;
       }
 
@@ -313,8 +319,84 @@ export default function QuestionListPage() {
     await handleSelectQuiz(quizId, router);   // panggil yang bikin room + redirect
   };
 
-  // Only show full loading on initial load or creating
-  if ((loading && quizzes.length === 0) || creating) return <LoadingRetro />
+  // ✅ Toggle Favorite Quiz
+  const handleToggleFavorite = async (e: React.MouseEvent, quizId: string) => {
+    e.stopPropagation();
+    if (!profile?.id) return;
+
+    const isFavoriting = !favorites.includes(quizId);
+    let newFavorites = [...favorites];
+
+    if (isFavoriting) {
+      newFavorites.push(quizId);
+    } else {
+      newFavorites = newFavorites.filter(id => id !== quizId);
+    }
+
+    // Optimistic Update
+    setFavorites(newFavorites);
+
+    try {
+      // 1. Update profiles.favorite_quiz (array of quiz IDs per user)
+      const favoriteData = { favorites: newFavorites };
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ favorite_quiz: favoriteData })
+        .eq('id', profile.id);
+
+      if (profileError) throw profileError;
+
+      // 2. Update quizzes.favorite (array of user IDs per quiz)
+      // First, get current favorite array from quiz
+      const { data: quizData, error: fetchError } = await supabase
+        .from('quizzes')
+        .select('favorite')
+        .eq('id', quizId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      let quizFavorites: string[] = [];
+      if (quizData?.favorite) {
+        // Handle both string and array formats
+        if (typeof quizData.favorite === 'string') {
+          try {
+            quizFavorites = JSON.parse(quizData.favorite);
+          } catch {
+            quizFavorites = [];
+          }
+        } else {
+          quizFavorites = quizData.favorite;
+        }
+      }
+
+      // Update the array
+      if (isFavoriting) {
+        if (!quizFavorites.includes(profile.id)) {
+          quizFavorites.push(profile.id);
+        }
+      } else {
+        quizFavorites = quizFavorites.filter(id => id !== profile.id);
+      }
+
+      // Save back to quizzes table
+      const { error: quizError } = await supabase
+        .from('quizzes')
+        .update({ favorite: quizFavorites })
+        .eq('id', quizId);
+
+      if (quizError) throw quizError;
+
+    } catch (err) {
+      console.error("Error updating favorites:", err);
+      // Revert on error
+      setFavorites(favorites);
+    }
+  };
+
+  // Only show full loading on initial load (quizzes not loaded yet)
+  // Creating state shows global loading overlay instead
+  if (loading && quizzes.length === 0) return <LoadingRetro />;
 
   return (
     <div className="h-screen bg-[#1a0a2a] relative overflow-hidden"> {/* Fixed height */}
@@ -323,8 +405,13 @@ export default function QuestionListPage() {
       <AnimatePresence mode="wait">
         <motion.div
           key={currentBgIndex}
-          className="absolute inset-0 w-full h-full bg-cover bg-center"
-          style={{ backgroundImage: `url(${backgroundGifs[currentBgIndex]})` }}
+          className="fixed inset-0 w-full h-full"
+          style={{
+            backgroundImage: `url(${backgroundGifs[currentBgIndex]})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat'
+          }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -332,9 +419,7 @@ export default function QuestionListPage() {
         />
       </AnimatePresence>
 
-      {(loading || creating) && (
-        <LoadingRetro />
-      )}
+      {/* Loading handled by GlobalLoadingContext */}
 
       {/* Scrollable Content Wrapper */}
       <div className="absolute inset-0 overflow-y-auto z-10">
@@ -483,11 +568,11 @@ export default function QuestionListPage() {
                 transition={{ duration: 0.1 }}
               >
                 {/* Subtle loading indicator */}
-                {isFetching && (
+                {/* {isFetching && (
                   <div className="flex justify-center mb-4">
                     <div className="w-6 h-6 border-3 border-[#00ffff] border-t-transparent rounded-full animate-spin"></div>
                   </div>
-                )}
+                )} */}
                 <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 transition-opacity duration-200 ${isFetching ? 'opacity-50' : 'opacity-100'}`}>
                   {quizzes.map((quiz: any, index: number) => {
                     const isThisQuizCreating = creatingQuizId === quiz.id;
@@ -514,6 +599,20 @@ export default function QuestionListPage() {
                             if (!creating) handleQuizSelect(quiz.id);
                           }}
                         >
+                          {/* Favorite Button */}
+                          <div className="absolute top-2 right-2 z-20">
+                            <button
+                              onClick={(e) => handleToggleFavorite(e, quiz.id)}
+                              className="p-1.5 hover:bg-[#1a0a2a]/50 rounded-full transition-all group cursor-pointer"
+                            >
+                              <Heart
+                                className={`w-5 h-5 transition-all ${favorites.includes(quiz.id)
+                                  ? "fill-[#ff6bff] text-[#ff6bff] glow-pink"
+                                  : "text-[#ff6bff]/50 group-hover:text-[#ff6bff]"
+                                  }`}
+                              />
+                            </button>
+                          </div>
                           {isThisQuizCreating && (
                             <div className="absolute inset-0 flex items-center justify-center bg-[#1a0a2a]/80 rounded-lg z-10">
                               <div className="flex flex-col items-center gap-2">

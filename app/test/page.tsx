@@ -7,8 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { mysupa } from "@/lib/supabase";
-import { generateXID } from "@/lib/id-generator";
-import { Play, Trash2, StopCircle, Zap } from "lucide-react";
+import { Play, Trash2, StopCircle } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -20,8 +19,69 @@ import {
     DialogOverlay,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { BotInstance } from "@/components/test/BotInstance";
 
 const CAR_OPTIONS = ["purple", "white", "black", "aqua", "blue"];
+
+// Import Indonesian names from JSON (more efficient, easier to maintain)
+import indonesianNames from "@/data/indonesian-names.json";
+
+// Helper to pick random from array
+const pickRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
+// Unique nickname generator class to avoid duplicates
+class UniqueNicknameGenerator {
+    private usedNames: Set<string> = new Set();
+    private firstNames: string[];
+    private middleNames: string[];
+    private lastNames: string[];
+
+    constructor() {
+        this.firstNames = indonesianNames.firstNames;
+        this.middleNames = indonesianNames.middleNames;
+        this.lastNames = indonesianNames.lastNames;
+    }
+
+    generate(): string {
+        let attempts = 0;
+        const maxAttempts = 100;
+
+        while (attempts < maxAttempts) {
+            // Random format: 1-4 words
+            const wordCount = Math.floor(Math.random() * 4) + 1;
+            let nickname: string;
+
+            if (wordCount === 1) {
+                // Just first name
+                nickname = pickRandom(this.firstNames);
+            } else if (wordCount === 2) {
+                // First + Last
+                nickname = `${pickRandom(this.firstNames)} ${pickRandom(this.lastNames)}`;
+            } else if (wordCount === 3) {
+                // First + Middle + Last
+                nickname = `${pickRandom(this.firstNames)} ${pickRandom(this.middleNames)} ${pickRandom(this.lastNames)}`;
+            } else {
+                // First + Middle1 + Middle2 + Last
+                nickname = `${pickRandom(this.firstNames)} ${pickRandom(this.middleNames)} ${pickRandom(this.middleNames)} ${pickRandom(this.lastNames)}`;
+            }
+
+            if (!this.usedNames.has(nickname)) {
+                this.usedNames.add(nickname);
+                return nickname;
+            }
+            attempts++;
+        }
+
+        // Fallback: use full 4-word format for guaranteed uniqueness
+        const fallback = `${pickRandom(this.firstNames)} ${pickRandom(this.middleNames)} ${pickRandom(this.middleNames)} ${pickRandom(this.lastNames)}`;
+        this.usedNames.add(fallback);
+        return fallback;
+    }
+
+    reset(): void {
+        this.usedNames.clear();
+    }
+}
 
 // Background GIFs like host pages
 const backgroundGifs = [
@@ -30,13 +90,6 @@ const backgroundGifs = [
     "/assets/background/host/7.webp",
 ];
 
-interface TestUser {
-    id: string;
-    nickname: string;
-    currentQuestion: number;
-    completed: boolean;
-}
-
 interface SessionData {
     id: string;
     status: string;
@@ -44,7 +97,7 @@ interface SessionData {
     current_questions: any[];
 }
 
-export default function StressTestPage() {
+export default function TestPage() {
     const { isAdmin, loading } = useAdminGuard();
     const [roomCode, setRoomCode] = useState("");
     const [userCount, setUserCount] = useState(100);
@@ -57,13 +110,15 @@ export default function StressTestPage() {
     const [answeringCount, setAnsweringCount] = useState(0);
     const [completedCount, setCompletedCount] = useState(0);
     const [errorCount, setErrorCount] = useState(0);
-    const [gameEnded, setGameEnded] = useState(false);
     const [showCleanupDialog, setShowCleanupDialog] = useState(false);
     const [isCleaningUp, setIsCleaningUp] = useState(false);
 
+    // Refs for BotInstance communication
     const stopRef = useRef(false);
-    const usersRef = useRef<TestUser[]>([]);
+    const gameStatusRef = useRef<string>("waiting");
     const sessionChannelRef = useRef<any>(null);
+    const nicknameGeneratorRef = useRef(new UniqueNicknameGenerator());
+    const botIdsRef = useRef<string[]>([]);
 
     // Background cycling
     useEffect(() => {
@@ -77,10 +132,6 @@ export default function StressTestPage() {
         const timestamp = new Date().toLocaleTimeString();
         setLogs(prev => [`[${timestamp}] ${message}`, ...prev.slice(0, 199)]);
     }, []);
-
-    // Random delay between min and max milliseconds
-    const randomDelayRange = (minMs: number, maxMs: number) =>
-        new Promise(resolve => setTimeout(resolve, minMs + Math.random() * (maxMs - minMs)));
 
     // Fetch session
     const fetchSession = async (code: string): Promise<SessionData | null> => {
@@ -97,21 +148,27 @@ export default function StressTestPage() {
         return data;
     };
 
-    // Subscribe to session changes (detect game end)
+    // Subscribe to session changes (detect game start/end)
     const subscribeToSession = (sessionId: string) => {
         sessionChannelRef.current = mysupa
-            .channel(`stress-test-session-${sessionId}`)
+            .channel(`test-session-${sessionId}`)
             .on(
                 "postgres_changes",
                 { event: "UPDATE", schema: "public", table: "sessions", filter: `id=eq.${sessionId}` },
                 (payload) => {
                     const newStatus = payload.new?.status;
+                    gameStatusRef.current = newStatus;
+
                     if (newStatus === "finished") {
                         addLog("🛑 Host ended the game!");
-                        setGameEnded(true);
                         stopRef.current = true;
+                        setIsRunning(false);
                     } else if (newStatus === "active") {
                         addLog("🎮 Game started by host!");
+                        // Update session with questions
+                        setSession(prev => prev ? { ...prev, ...payload.new } : null);
+                    } else if (newStatus === "countdown") {
+                        addLog("⏱️ Countdown started!");
                     }
                 }
             )
@@ -120,151 +177,33 @@ export default function StressTestPage() {
                 { event: "DELETE", schema: "public", table: "sessions", filter: `id=eq.${sessionId}` },
                 () => {
                     addLog("🗑️ Session deleted by host!");
-                    setGameEnded(true);
                     stopRef.current = true;
+                    setIsRunning(false);
                 }
             )
             .subscribe();
     };
 
-    // Phase 1: Join all users CONCURRENTLY with random delays (1-10s each)
-    const joinUsersConcurrently = async (sessionId: string) => {
-        addLog(`🚀 Joining ${userCount} users concurrently (1-10s delays)...`);
+    // Bot callbacks
+    const handleBotJoined = useCallback((nickname: string) => {
+        setJoinedCount(prev => prev + 1);
+        addLog(`✅ ${nickname} joined`);
+    }, [addLog]);
 
-        const joinPromises = Array.from({ length: userCount }, async (_, i) => {
-            // Each bot has random delay 1-10 seconds
-            await randomDelayRange(1000, 10000);
+    const handleBotAnswered = useCallback((nickname: string, questionIndex: number) => {
+        setAnsweringCount(prev => Math.max(prev, questionIndex));
+        addLog(`${nickname} → Q${questionIndex}`);
+    }, [addLog]);
 
-            if (stopRef.current) return null;
+    const handleBotCompleted = useCallback((nickname: string) => {
+        setCompletedCount(prev => prev + 1);
+        addLog(`🏁 ${nickname} finished!`);
+    }, [addLog]);
 
-            const userId = generateXID();
-            const nickname = `Bot_${(i + 1).toString().padStart(3, "0")}`;
-
-            const { error } = await mysupa
-                .from("participants")
-                .insert({
-                    id: userId,
-                    session_id: sessionId,
-                    nickname,
-                    car: CAR_OPTIONS[Math.floor(Math.random() * CAR_OPTIONS.length)],
-                    score: 0,
-                    answers: [],
-                    current_question: 0,
-                    completion: false,
-                    racing: false,
-                });
-
-            if (error) {
-                setErrorCount(prev => prev + 1);
-                addLog(`❌ ${nickname} failed to join`);
-                return null;
-            }
-
-            setJoinedCount(prev => prev + 1);
-            addLog(`✅ ${nickname} joined`);
-            return { id: userId, nickname, currentQuestion: 0, completed: false } as TestUser;
-        });
-
-        const results = await Promise.all(joinPromises);
-        const users = results.filter(Boolean) as TestUser[];
-        usersRef.current = users;
-        addLog(`📊 Total joined: ${users.length} users`);
-    };
-
-    // Phase 2: Lobby - CONCURRENT car changes with random delays (1-10s each)
-    const lobbyPhaseConcurrent = async () => {
-        addLog("🚗 Car selection phase...");
-
-        while (!stopRef.current) {
-            const sess = await fetchSession(roomCode);
-            // Stop if game active OR countdown started
-            if (sess?.status === "active" || sess?.status === "countdown") {
-                addLog("⏱️ Game starting! Stopping car changes...");
-                break;
-            }
-
-            // All users change car CONCURRENTLY with random delays 1-10s
-            await Promise.all(
-                usersRef.current.map(async (user) => {
-                    await randomDelayRange(1000, 10000);
-                    if (stopRef.current) return;
-
-                    const newCar = CAR_OPTIONS[Math.floor(Math.random() * CAR_OPTIONS.length)];
-                    await mysupa.from("participants").update({ car: newCar }).eq("id", user.id);
-                })
-            );
-        }
-    };
-
-    // Phase 3: Each bot answers independently with 3-10 second intervals
-    const answerQuestionsIndependently = async (questions: any[]) => {
-        const totalQuestions = questions.length;
-        const scorePerQuestion = Math.max(1, Math.floor(100 / totalQuestions));
-
-        addLog(`📝 Starting game with ${totalQuestions} questions...`);
-        addLog(`🤖 Each bot thinks independently (3-10s per answer)...`);
-
-        // Each bot runs independently
-        const botPromises = usersRef.current.map(async (user, botIndex) => {
-            for (let qIndex = 0; qIndex < totalQuestions; qIndex++) {
-                if (stopRef.current || user.completed) break;
-
-                // Random thinking time 3-10 seconds
-                await randomDelayRange(3000, 10000);
-                if (stopRef.current) break;
-
-                const question = questions[qIndex];
-                const randomAnswer = Math.floor(Math.random() * 4);
-                const isCorrect = Math.random() > 0.5;
-                const score = isCorrect ? scorePerQuestion : 0;
-
-                const newAnswer = {
-                    id: generateXID(),
-                    question_id: question.id,
-                    selected_answer: randomAnswer,
-                    is_correct: isCorrect,
-                    score,
-                    answered_at: new Date().toISOString(),
-                };
-
-                const isLastQuestion = qIndex === totalQuestions - 1;
-                const shouldRace = (qIndex + 1) % 3 === 0 && !isLastQuestion;
-
-                try {
-                    await mysupa.rpc("submit_quiz_answer_batch", {
-                        p_participant_id: user.id,
-                        p_new_answers: [newAnswer],
-                        p_total_score_add: score,
-                        p_total_correct_add: isCorrect ? 1 : 0,
-                        p_next_index: qIndex + 1,
-                        p_is_finished: isLastQuestion,
-                        p_is_racing: shouldRace,
-                    });
-
-                    user.currentQuestion = qIndex + 1;
-                    addLog(`${user.nickname} → Q${qIndex + 1}`);
-                    setAnsweringCount(prev => Math.max(prev, qIndex + 1));
-
-                    // Handle minigame after every 3 questions
-                    if (shouldRace) {
-                        await randomDelayRange(1000, 3000);
-                        await mysupa.from("participants").update({ racing: false }).eq("id", user.id);
-                    }
-
-                    if (isLastQuestion) {
-                        user.completed = true;
-                        setCompletedCount(prev => prev + 1);
-                        addLog(`🏁 ${user.nickname} finished!`);
-                    }
-                } catch (err) {
-                    setErrorCount(prev => prev + 1);
-                }
-            }
-        });
-
-        await Promise.all(botPromises);
-        addLog(`🎉 All bots completed!`);
-    };
+    const handleBotError = useCallback((nickname: string, error: string) => {
+        setErrorCount(prev => prev + 1);
+        addLog(`❌ ${nickname}: ${error}`);
+    }, [addLog]);
 
     // Main test runner
     const startTest = async () => {
@@ -274,45 +213,29 @@ export default function StressTestPage() {
         }
 
         setIsRunning(true);
-        setGameEnded(false);
         stopRef.current = false;
+        gameStatusRef.current = "waiting";
         setLogs([]);
         setJoinedCount(0);
         setAnsweringCount(0);
         setCompletedCount(0);
         setErrorCount(0);
-        usersRef.current = [];
+        botIdsRef.current = [];
+        nicknameGeneratorRef.current.reset();
 
-        addLog(`🧪 Starting stress test: ${roomCode}`);
+        addLog(`🧪 Starting test: ${roomCode}`);
 
         const sess = await fetchSession(roomCode);
         if (!sess) {
             setIsRunning(false);
             return;
         }
+
         setSession(sess);
+        gameStatusRef.current = sess.status;
         subscribeToSession(sess.id);
         addLog(`✅ Session found: ${sess.status}`);
-
-        await joinUsersConcurrently(sess.id);
-        if (stopRef.current) { setIsRunning(false); return; }
-
-        if (sess.status === "waiting") {
-            await lobbyPhaseConcurrent();
-        }
-        if (stopRef.current) { setIsRunning(false); return; }
-
-        const updatedSess = await fetchSession(roomCode);
-        if (!updatedSess?.current_questions?.length) {
-            addLog("❌ No questions found");
-            setIsRunning(false);
-            return;
-        }
-
-        await answerQuestionsIndependently(updatedSess.current_questions);
-
-        setIsRunning(false);
-        if (!stopRef.current) addLog("🎉 Test completed successfully!");
+        addLog(`🤖 Spawning ${userCount} bots with IQ-based AI...`);
     };
 
     const stopTest = () => {
@@ -321,6 +244,7 @@ export default function StressTestPage() {
             mysupa.removeChannel(sessionChannelRef.current);
         }
         addLog("⛔ Test stopped");
+        setIsRunning(false);
     };
 
     const cleanupUsers = async () => {
@@ -328,14 +252,13 @@ export default function StressTestPage() {
         setIsCleaningUp(true);
         addLog("🧹 Cleaning up bots...");
 
+        // Delete all participants in this session
         await mysupa
             .from("participants")
             .delete()
-            .eq("session_id", session.id)
-            .like("nickname", "Bot_%");
+            .eq("session_id", session.id);
 
         addLog("✅ Cleanup complete");
-        usersRef.current = [];
         setJoinedCount(0);
         setCompletedCount(0);
         setIsCleaningUp(false);
@@ -395,17 +318,13 @@ export default function StressTestPage() {
                             className="pixel-border-large inline-block pb-2"
                         >
                             <h1 className="text-4xl font-bold text-[#ffefff] pixel-text glow-pink">
-                                Stress Test
+                                TEST
                             </h1>
                         </motion.div>
                     </div>
 
                     {/* Control Panel */}
                     <Card className="bg-[#1a0a2a]/80 border-[#ff6bff]/50 pixel-card backdrop-blur-sm">
-                        {/* <CardHeader className="pb-2">
-                            <CardTitle className="text-xl text-[#ff6bff] pixel-text glow-pink flex items-center gap-2">Control Panel                                {gameEnded && <span className="text-red-400 text-sm animate-pulse">⛔ Game Ended</span>}
-                            </CardTitle>
-                        </CardHeader> */}
                         <CardContent className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
@@ -440,7 +359,7 @@ export default function StressTestPage() {
                                         onClick={startTest}
                                         className="flex-1 bg-[#00ffff]/20 border-2 border-[#00ffff] text-[#00ffff] hover:bg-[#00ffff]/40 pixel-button glow-cyan"
                                     >
-                                        <Play className="w-4 h-4 mr-2" /> Start Test
+                                        <Play className="w-4 h-4 mr-2" /> Start
                                     </Button>
                                 ) : (
                                     <Button
@@ -464,25 +383,25 @@ export default function StressTestPage() {
                     {/* Stats Grid */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                         <Card className="bg-[#1a0a2a]/80 border-[#00ffff]/50 pixel-card">
-                            <CardContent className="p-4 text-center">
+                            <CardContent className="p-2 text-center">
                                 <div className="text-3xl font-bold text-[#00ffff] pixel-text glow-cyan">{joinedCount}</div>
                                 <div className="text-xs text-[#00ffff]/70 pixel-text">Joined</div>
                             </CardContent>
                         </Card>
                         <Card className="bg-[#1a0a2a]/80 border-[#ff6bff]/50 pixel-card">
-                            <CardContent className="p-4 text-center">
+                            <CardContent className="p-2 text-center">
                                 <div className="text-3xl font-bold text-[#ff6bff] pixel-text glow-pink">{answeringCount}</div>
                                 <div className="text-xs text-[#ff6bff]/70 pixel-text">Question</div>
                             </CardContent>
                         </Card>
                         <Card className="bg-[#1a0a2a]/80 border-green-500/50 pixel-card">
-                            <CardContent className="p-4 text-center">
+                            <CardContent className="p-2 text-center">
                                 <div className="text-3xl font-bold text-green-400 pixel-text">{completedCount}</div>
                                 <div className="text-xs text-green-400/70 pixel-text">Completed</div>
                             </CardContent>
                         </Card>
                         <Card className="bg-[#1a0a2a]/80 border-red-500/50 pixel-card">
-                            <CardContent className="p-4 text-center">
+                            <CardContent className="p-2 text-center">
                                 <div className="text-3xl font-bold text-red-400 pixel-text">{errorCount}</div>
                                 <div className="text-xs text-red-400/70 pixel-text">Errors</div>
                             </CardContent>
@@ -490,9 +409,9 @@ export default function StressTestPage() {
                     </div>
 
                     {/* Logs */}
-                    <Card className="bg-[#1a0a2a]/80 border-[#ff6bff]/30 pixel-card">
-                        <CardHeader className="pb-2">
-                            <CardTitle className="text-sm text-[#ff6bff] pixel-text">📜 Live Logs</CardTitle>
+                    <Card className="bg-[#1a0a2a]/80 border-[#ff6bff]/30 pixel-card gap-3">
+                        <CardHeader>
+                            <CardTitle className="text-sm text-[#ff6bff] pixel-text">📜 Logs</CardTitle>
                         </CardHeader>
                         <CardContent>
                             <div className="h-64 overflow-y-auto bg-black/60 rounded-lg p-3 font-mono text-xs space-y-0.5 border border-[#ff6bff]/20">
@@ -519,6 +438,28 @@ export default function StressTestPage() {
                     </Card>
                 </div>
             </div>
+
+            {/* Render Bot Instances (no UI, logic only) */}
+            {isRunning && session && (
+                <>
+                    {Array.from({ length: userCount }, (_, i) => (
+                        <BotInstance
+                            key={`bot-${i}-${session.id}`}
+                            botId={i}
+                            sessionId={session.id}
+                            roomCode={roomCode}
+                            carOptions={CAR_OPTIONS}
+                            nicknameGenerator={nicknameGeneratorRef.current}
+                            onJoined={handleBotJoined}
+                            onAnswered={handleBotAnswered}
+                            onCompleted={handleBotCompleted}
+                            onError={handleBotError}
+                            stopSignal={stopRef}
+                            gameStatus={gameStatusRef}
+                        />
+                    ))}
+                </>
+            )}
 
             {/* Cleanup Confirmation Dialog */}
             <Dialog open={showCleanupDialog} onOpenChange={setShowCleanupDialog}>

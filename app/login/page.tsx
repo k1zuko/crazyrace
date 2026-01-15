@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/authContext"
+import { login } from "@/app/actions/auth"
 import { FcGoogle } from 'react-icons/fc';
 import { FaHandPointRight } from 'react-icons/fa';
 import { useTranslation } from "react-i18next"
@@ -33,12 +34,19 @@ export default function LoginPage() {
     typeof window !== "undefined" &&
       window.location.hostname.includes("gameforsmart.com")
       ? "https://gameforsmart.com/auth/register"
-      : "https://gameforsmart2025.vercel.app/auth/register";
+      : "https://gameforsmart2026.vercel.app/auth/register";
 
 
   useEffect(() => {
-    if ((user || profile) && !loading) { // Cek user ATAU profile (biar tunggu profile ready)
-      router.replace('/')
+    if ((user || profile) && !loading) {
+      const pendingCode = localStorage.getItem("pendingRoomCode");
+      if (pendingCode) {
+        // Ada pending room code → keep di localStorage, redirect ke home untuk auto-join
+        localStorage.setItem("roomCode", pendingCode);
+        router.replace('/');
+      } else {
+        router.replace('/');
+      }
     }
   }, [user, profile, loading, router])
 
@@ -49,23 +57,6 @@ export default function LoginPage() {
     }, 5000)
     return () => clearInterval(interval)
   }, [])
-
-  const resolveEmail = async (input: string) => {
-    // Kalau input mengandung @ → berarti email
-    if (input.includes("@")) return input.toLowerCase();
-
-    // Kalau username → cari di tabel profiles
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("username", input)
-      .maybeSingle();
-
-    if (error) throw error;
-    if (!data) throw new Error("Username tidak ditemukan!");
-
-    return data.email.toLowerCase();
-  };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -78,14 +69,19 @@ export default function LoginPage() {
     setError("")
 
     try {
-      const resolvedEmail = await resolveEmail(identifier.trim());
+      const formData = new FormData()
+      formData.append('identifier', identifier.trim())
+      formData.append('password', password)
 
-      const { error } = await supabase.auth.signInWithPassword({
-        email: resolvedEmail,
-        password,
-      })
+      const result = await login(formData)
 
-      if (error) throw error;
+      if (result.error) {
+        throw new Error(result.error)
+      }
+
+      // Login success
+      // Force full reload to ensure AuthContext picks up the new cookie from server action
+      window.location.href = '/'
 
     } catch (err: any) {
       setError(err.message || "Terjadi kesalahan, coba lagi!")
@@ -115,7 +111,7 @@ export default function LoginPage() {
       <AnimatePresence mode="wait">
         <motion.video
           key="background-video"
-          className="absolute inset-0 w-full h-full object-cover"
+          className="fixed inset-0 w-full h-full object-cover"
           autoPlay
           loop
           muted
