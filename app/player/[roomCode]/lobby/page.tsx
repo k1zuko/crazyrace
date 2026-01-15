@@ -7,10 +7,11 @@ import { Badge } from "@/components/ui/badge"
 import { Users, ArrowLeft } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { mysupa, supabase } from "@/lib/supabase"
+import { mysupa } from "@/lib/supabase"
 import LoadingRetro from "@/components/loadingRetro"
 import { useGlobalLoading } from "@/contexts/globalLoadingContext"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogOverlay, DialogTitle } from "@/components/ui/dialog"
+import { getPlayerLobbyData, prefetchGameDataAction, leaveGameAction, updatePlayerCarAction, getParticipantsAction } from "@/app/actions/lobby-player"
 
 import Image from "next/image"
 import { breakOnCaps } from "@/utils/game"
@@ -203,48 +204,15 @@ export default function LobbyPage() {
     try {
       const participantId = localStorage.getItem("participantId") || "";
 
-      // 1. Fetch session dengan current_questions
-      const { data: sess, error: sessError } = await mysupa
-        .from("sessions")
-        .select("id, status, started_at, total_time_minutes, current_questions, difficulty")
-        .eq("game_pin", roomCode)
-        .single();
+      // USES NEW SERVER ACTION (Sanitized!)
+      const result = await prefetchGameDataAction(roomCode, participantId);
 
-      if (sessError || !sess) {
-        console.error("❌ Prefetch session error:", sessError);
-        return;
+      if (result.error || !result.data) {
+        console.error("❌ Prefetch error:", result.error)
+        return
       }
 
-      // 2. Parse questions TANPA correctAnswer (keamanan!)
-      const questions = (sess.current_questions || []).map((q: any) => ({
-        id: q.id,
-        question: q.question,
-        options: q.answers.map((a: any) => a.answer),
-        // NO correctAnswer! Server-side validation only
-      }));
-
-      // 3. Fetch participant state
-      const { data: participant } = await mysupa
-        .from("participants")
-        .select("answers, completion, current_question")
-        .eq("id", participantId)
-        .single();
-
-      // 4. Store prefetched data ke sessionStorage (lebih aman dari localStorage)
-      const prefetchedData = {
-        session: {
-          id: sess.id,
-          status: sess.status,
-          started_at: sess.started_at,
-          total_time_minutes: sess.total_time_minutes,
-          difficulty: sess.difficulty,
-        },
-        questions,
-        participant: participant || { answers: [], completion: false, current_question: 0 },
-        prefetchedAt: Date.now(),
-      };
-
-      sessionStorage.setItem(prefetchKey, JSON.stringify(prefetchedData));
+      sessionStorage.setItem(prefetchKey, JSON.stringify(result.data));
 
     } catch (err) {
       console.error("❌ Prefetch game data error:", err);
@@ -266,17 +234,14 @@ export default function LobbyPage() {
     }
   }, [session?.status, loading, roomCode, router]);
 
-  // REFACTORED: Use the 'remove_participant_from_session' RPC for a safe, atomic update.
+  // REFACTORED: Use server action
   const handleExit = async () => {
     if (!currentPlayer.id || !session) return;
 
-    const { error } = await mysupa
-      .from("participants")
-      .delete()
-      .eq("id", currentPlayer.id);
+    const result = await leaveGameAction(currentPlayer.id);
 
-    if (error) {
-      console.error('Error exiting session via RPC:', error);
+    if (result.error) {
+      console.error('Error exiting session:', result.error);
     } else {
       localStorage.removeItem('participantId');
       localStorage.removeItem('game_pin');
@@ -285,7 +250,7 @@ export default function LobbyPage() {
     setShowExitDialog(false);
   };
 
-  // REFACTORED: Use the 'update_participant_car' RPC for a safe, atomic update.
+  // REFACTORED: Use server action
   const handleSelectCar = async (selectedCar: string) => {
     if (!currentPlayer.id || !session) return;
 
@@ -294,15 +259,11 @@ export default function LobbyPage() {
     setParticipants(prev => prev.map(p => p.id === currentPlayer.id ? { ...p, car: selectedCar } : p));
     setShowCarDialog(false);
 
-    const { error } = await mysupa
-      .from('participants')
-      .update({ car: selectedCar })
-      .eq('id', currentPlayer.id);
+    const result = await updatePlayerCarAction(currentPlayer.id, selectedCar);
 
-
-    if (error) {
-      console.error('Error updating car via RPC:', error);
-      // Revert optimistic update on error if needed
+    if (result.error) {
+      console.error('Error updating car:', result.error);
+      // Revert usually needed here but skipped for now
     }
   };
 
@@ -311,23 +272,30 @@ export default function LobbyPage() {
     if (!session?.id || !cursor || isLoadingMore || !hasMore) return;
 
     setIsLoadingMore(true);
-    const { data: more } = await mysupa
-      .from("participants")
-      .select("*")
-      .eq("session_id", session.id)
-      .gt("joined_at", cursor)
-      .order("joined_at", { ascending: true })
-      .limit(pageSize);
+    const participantId = currentPlayer.id;
+    if (!participantId) return;
 
-    if (more && more.length > 0) {
-      setParticipants(prev => [...prev, ...more]);
-      setCursor(more[more.length - 1].joined_at);
-      setHasMore(more.length >= pageSize);
+    const result = await getParticipantsAction(roomCode, participantId, cursor, pageSize)
+
+    if (result.error) {
+      console.error("Load more error:", result.error)
+      setIsLoadingMore(false);
+      return
+    }
+
+    if (result.participants && result.participants.length > 0) {
+      setParticipants(prev => {
+        const newIds = new Set(prev.map(p => p.id));
+        const filtered = result.participants.filter((p: any) => !newIds.has(p.id));
+        return [...prev, ...filtered]
+      });
+      setCursor(result.nextCursor);
+      setHasMore(result.hasMore);
     } else {
       setHasMore(false);
     }
     setIsLoadingMore(false);
-  }, [session?.id, cursor, isLoadingMore, hasMore, pageSize]);
+  }, [session?.id, cursor, isLoadingMore, hasMore, pageSize, roomCode, currentPlayer.id]);
 
   // Infinite scroll: observe loader element
   useEffect(() => {
@@ -356,19 +324,25 @@ export default function LobbyPage() {
 
     const bootstrap = async () => {
       setLoading(true);
+      const myParticipantId = localStorage.getItem("participantId") || "";
 
-      // Fetch session dari gameplay supabase (include difficulty)
-      const { data: fetchedSession, error: sessionErr } = await mysupa
-        .from("sessions")
-        .select("id, status, countdown_started_at, started_at, ended_at, difficulty")
-        .eq("game_pin", roomCode)
-        .single();
+      if (!myParticipantId) {
+        router.replace("/");
+        return
+      }
 
-      if (sessionErr || !fetchedSession) {
+      // ✅ Fetch initial data from Server Action (Secure)
+      const result = await getPlayerLobbyData(roomCode, myParticipantId)
+
+      if (result.error || !result.session || !result.participant) {
+        console.error("Bootstrap error:", result.error)
+        localStorage.removeItem("participantId");
+        localStorage.removeItem("game_pin");
         router.replace("/");
         return;
       }
 
+      const fetchedSession = result.session
       setSession(fetchedSession);
       setGamePhase(fetchedSession.status);
 
@@ -384,39 +358,24 @@ export default function LobbyPage() {
         stopCountdownSync();
       }
 
-      // Fetch participants (cursor-based)
-      const { data: fetchedParticipants, count } = await mysupa
-        .from("participants")
-        .select("*", { count: "exact" })
-        .eq("session_id", fetchedSession.id)
-        .order("joined_at", { ascending: true })
-        .limit(pageSize);
-
-      setParticipants(fetchedParticipants ?? []);
-      setTotalCount(count || 0);
-
-      // Set cursor and hasMore
-      if (fetchedParticipants && fetchedParticipants.length > 0) {
-        setCursor(fetchedParticipants[fetchedParticipants.length - 1].joined_at);
-        setHasMore(fetchedParticipants.length >= pageSize);
-      } else {
-        setHasMore(false);
-      }
-
-      const myParticipantId = localStorage.getItem("participantId") || "";
-      const me = (fetchedParticipants || []).find((p: any) => p.id === myParticipantId);
-
-      if (!me) {
-        console.warn("Participant not found");
-        localStorage.removeItem("participantId");
-        localStorage.removeItem("game_pin");
-        router.replace("/");
-        return;
-      }
-
+      const me = result.participant
       setCurrentPlayer({ id: me.id, nickname: me.nickname, car: me.car || "blue" });
 
-      // Realtime listener hanya pada sessions table
+      // Initial Participants - Ensure ME is included
+      const initialParticipants = result.participants || [];
+      const isMeInList = initialParticipants.some((p: any) => p.id === me.id);
+
+      if (!isMeInList) {
+        // Add me with a dummy joined_at if missing (or should be fetched)
+        initialParticipants.push({ ...me, joined_at: new Date().toISOString() });
+      }
+
+      setParticipants(initialParticipants);
+      setTotalCount(result.totalCount || 0);
+      setCursor(result.cursor);
+      setHasMore(result.hasMore);
+
+      // Realtime listener hanya pada sessions table (Read-only via mysupa)
       sessionChannel = mysupa
         .channel(`session:${roomCode}`)
         .on(
@@ -454,7 +413,7 @@ export default function LobbyPage() {
             event: "*",
             schema: "public",
             table: "participants",
-            filter: `session_id=eq.${fetchedSession.id}`,   // FIX HERE
+            filter: `session_id=eq.${fetchedSession.id}`,
           },
           (payload) => {
             if (payload.eventType === "INSERT") {
@@ -499,6 +458,28 @@ export default function LobbyPage() {
       if (participantsChannel) mysupa.removeChannel(participantsChannel);
     };
   }, [roomCode, router, startCountdownSync, stopCountdownSync, hideLoading]);
+
+  // 🚀 BROADCAST LISTENER (Fast path for countdown - separate useEffect)
+  useEffect(() => {
+    if (!roomCode) return;
+
+    const broadcastChannel = mysupa.channel(`room:${roomCode}`)
+      .on('broadcast', { event: 'countdown' }, (payload) => {
+        console.log("⚡ Broadcast countdown received:", payload);
+        const startTime = payload.payload?.countdown_started_at;
+        if (startTime) {
+          startCountdownSync(startTime, 10);
+          // Trigger preloads instantly
+          if (session?.difficulty) preloadMinigameAssets(session.difficulty);
+          prefetchGameData();
+        }
+      })
+      .subscribe();
+
+    return () => {
+      mysupa.removeChannel(broadcastChannel);
+    };
+  }, [roomCode, startCountdownSync, session?.difficulty, preloadMinigameAssets, prefetchGameData]);
 
 
   useEffect(() => {
