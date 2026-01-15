@@ -129,7 +129,6 @@ export default function LobbyPage() {
     countdownIntervalRef.current = setInterval(() => {
       remaining = calculateCountdown(startTimestamp, duration);
       setCountdown(remaining);
-      setLoading(true)
       if (remaining <= 0) {
         clearInterval(countdownIntervalRef.current!);
         countdownIntervalRef.current = null;

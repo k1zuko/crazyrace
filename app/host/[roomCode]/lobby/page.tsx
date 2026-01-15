@@ -387,7 +387,10 @@ export default function HostRoomPage() {
     // Start countdown via server action
     const countdownStart = new Date(getSyncedServerTime()).toISOString()
 
-    // 🚀 BROADCAST SIGNAL FIRST (Fast path - instant to all connected players)
+    // 🔥 START LOCAL COUNTDOWN IMMEDIATELY (Host UI updates instantly)
+    startCountdownSync(countdownStart, 10);
+
+    // 🚀 BROADCAST SIGNAL (Fast path - instant to all connected players)
     const broadcastChannel = mysupa.channel(`room:${roomCode}`)
     await broadcastChannel.subscribe()
     await broadcastChannel.send({
