@@ -26,7 +26,7 @@ import Image from "next/image";
 import { syncServerTime, getSyncedServerTime } from "@/utils/serverTime";
 import { useTranslation } from "react-i18next";
 import { t } from "i18next";
-import { useHostGuard } from "@/lib/host-guard";
+import { getLobbyData, startGame as startGameAction, kickPlayer as kickPlayerAction, getParticipants as getParticipantsAction } from "@/app/actions/lobby-host";
 
 const APP_NAME = "crazyrace"; // Safety check for multi-tenant DB
 
@@ -45,8 +45,7 @@ export default function HostRoomPage() {
   const router = useRouter();
   const roomCode = params.roomCode as string;
 
-  // Security: Verify host access
-  useHostGuard(roomCode);
+  // Security: Verify host access (Handled by getLobbyData)
   const { hideLoading } = useGlobalLoading();
 
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -121,17 +120,14 @@ export default function HostRoomPage() {
           setCountdown(0);
 
           setTimeout(async () => {
-            const { error } = await mysupa
-              .from("sessions")
-              .update({
-                status: "active",
-                started_at: new Date(getSyncedServerTime()).toISOString(),
-                countdown_started_at: null,
-              })
-              .eq("game_pin", roomCode);
-
-            if (error) console.error("End countdown error:", error);
-            else router.push(`/host/${roomCode}/game`);
+            // End countdown on server
+            // We reuse startGame with no params implies "active"
+            try {
+              await startGameAction(roomCode, null)
+            } catch (e) {
+              console.error("End countdown error:", e);
+            }
+            router.push(`/host/${roomCode}/game`);
           }, 500);
         }
       }, 100);
@@ -151,23 +147,28 @@ export default function HostRoomPage() {
     if (!session?.id || !cursor || isLoadingMore || !hasMore) return;
 
     setIsLoadingMore(true);
-    const { data: more } = await mysupa
-      .from("participants")
-      .select("id, nickname, car, joined_at")
-      .eq("session_id", session.id)
-      .gt("joined_at", cursor)
-      .order("joined_at", { ascending: true })
-      .limit(pageSize);
+    const result = await getParticipantsAction(roomCode, cursor, pageSize)
 
-    if (more && more.length > 0) {
-      setParticipants(prev => [...prev, ...more]);
-      setCursor(more[more.length - 1].joined_at);
-      setHasMore(more.length >= pageSize);
+    if (result.error) {
+      console.error("Load more error:", result.error)
+      setIsLoadingMore(false);
+      return
+    }
+
+    if (result.participants && result.participants.length > 0) {
+      setParticipants(prev => {
+        // Dedup just in case
+        const newIds = new Set(prev.map(p => p.id));
+        const filtered = result.participants.filter((p: any) => !newIds.has(p.id));
+        return [...prev, ...filtered]
+      });
+      setCursor(result.nextCursor);
+      setHasMore(result.hasMore);
     } else {
       setHasMore(false);
     }
     setIsLoadingMore(false);
-  }, [session?.id, cursor, isLoadingMore, hasMore, pageSize]);
+  }, [session?.id, cursor, isLoadingMore, hasMore, pageSize, roomCode]);
 
   // Infinite scroll: observe loader element
   useEffect(() => {
@@ -246,54 +247,37 @@ export default function HostRoomPage() {
     let sessionSubscription: any = null;
 
     const fetchSessionAndParticipants = async () => {
-      const { data: sessionData, error } = await mysupa
-        .from("sessions")
-        .select("id, status, countdown_started_at")
-        .eq("game_pin", roomCode)
-        .single();
+      // ✅ Fetch initial data from Server Action
+      const result = await getLobbyData(roomCode)
 
-      if (error || !sessionData) {
-        console.error("Error fetching session:", error);
-        setLoading(false);
+      if (result.error || !result.session) {
+        console.error("Error fetching session:", result.error);
         router.push("/host");
         return;
       }
 
-      setSession(sessionData);
+      setSession(result.session);
       setLoading(false);
       hideLoading();
 
-      // ⭐ FIRST FETCH PARTICIPANTS (cursor-based)
-      const { data: fetchedParticipants, error: pErr, count } = await mysupa
-        .from("participants")
-        .select("id, nickname, car, joined_at", { count: "exact" })
-        .eq("session_id", sessionData.id)
-        .order("joined_at", { ascending: true })
-        .limit(pageSize);
-
-      if (pErr) console.error("Fetch participants error:", pErr);
-      setParticipants(fetchedParticipants || []);
-      setTotalCount(count || 0);
+      setParticipants(result.participants || []);
+      setTotalCount(result.totalCount || 0);
 
       // Set cursor and hasMore
-      if (fetchedParticipants && fetchedParticipants.length > 0) {
-        setCursor(fetchedParticipants[fetchedParticipants.length - 1].joined_at);
-        setHasMore(fetchedParticipants.length >= pageSize);
-      } else {
-        setHasMore(false);
-      }
+      setCursor(result.cursor);
+      setHasMore(result.hasMore);
 
       setLoading(false);
       hideLoading();
 
       // Countdown start?
-      if (sessionData.countdown_started_at) {
-        startCountdownSync(sessionData.countdown_started_at, 10);
+      if (result.session.countdown_started_at) {
+        startCountdownSync(result.session.countdown_started_at, 10);
       } else {
         stopCountdownSync();
       }
 
-      // 🔥 Subscribe realtime session changes
+      // 🔥 Subscribe realtime session changes (READ ONLY via mysupa client)
       sessionSubscription = mysupa
         .channel(`session:${roomCode}`)
         .on(
@@ -400,28 +384,33 @@ export default function HostRoomPage() {
   };
 
   const startGame = async () => {
-    const { error } = await mysupa
-      .from("sessions")
-      .update({
-        countdown_started_at: new Date(getSyncedServerTime()).toISOString(),
-      })
-      .eq("game_pin", roomCode);
+    // Start countdown via server action
+    const countdownStart = new Date(getSyncedServerTime()).toISOString()
 
-    if (error) console.error("startGame error:", error);
+    // 🚀 BROADCAST SIGNAL FIRST (Fast path - instant to all connected players)
+    const broadcastChannel = mysupa.channel(`room:${roomCode}`)
+    await broadcastChannel.subscribe()
+    await broadcastChannel.send({
+      type: 'broadcast',
+      event: 'countdown',
+      payload: { countdown_started_at: countdownStart }
+    })
+    mysupa.removeChannel(broadcastChannel) // Cleanup after sending
+
+    // We update session to start countdown (DB Persistence for late joiners/refresh)
+    const result = await startGameAction(roomCode, countdownStart)
+
+    if (result.error) console.error("startGame error:", result.error);
     else setGameStarted(true);
   };
 
   const confirmKick = async () => {
     if (!selectedPlayerId || !session) return;
 
-    const { error } = await mysupa
-      .from("participants")
-      .delete()
-      .eq("id", selectedPlayerId)
-      .eq("session_id", session.id);
+    const result = await kickPlayerAction(roomCode, selectedPlayerId)
 
-    if (error) {
-      console.error("Kick participant error:", error);
+    if (result.error) {
+      console.error("Kick participant error:", result.error);
     } else {
       console.log(`Participant ${selectedPlayerId} kicked successfully`);
     }

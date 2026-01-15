@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, ArrowLeft, HelpCircle, Heart, User } from "lucide-react"
 import { useEffect, useState, useRef } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { mysupa, supabase } from "@/lib/supabase"
+// import { mysupa, supabase } from "@/lib/supabase" // Removed direct access
 import { useRouter } from "next/navigation"
 import LoadingRetro from "@/components/loadingRetro"
 import { useGlobalLoading } from "@/contexts/globalLoadingContext"
@@ -17,6 +17,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useTranslation } from "react-i18next"
 import { t } from "i18next"
 import { generateXID } from "@/lib/id-generator"
+import {
+  getHostProfile,
+  getQuizCategories,
+  getQuizzesPaginated,
+  toggleFavoriteQuiz,
+  createGameSession
+} from "@/app/actions/select-quiz"
 
 // List of background GIFs in filename order
 const backgroundGifs = [
@@ -57,95 +64,66 @@ export default function QuestionListPage() {
   const itemsPerPage = 9;
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
-  // Fetch profile (unchanged)
+  // Fetch profile via Server Action
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!user?.id) return;
-      const { data: profileData, error } = await supabase
-        .from('profiles')
-        .select('id, favorite_quiz')
-        .eq('auth_user_id', user.id)
-        .single();
+      // We don't rely on client 'user' object for the query anymore, 
+      // but we still wait for auth context to be roughly ready or just fire it.
+      // Server action 'getHostProfile' checks auth cookie on server.
 
-      if (error) {
-        console.error('Error fetching profile:', error);
+      const result = await getHostProfile()
+
+      if (result.error) {
+        console.error('Error fetching profile:', result.error)
+        // If not authenticated, maybe redirect or just show empty?
+        setFavorites([])
+        setProfile(null)
       } else {
-        setProfile(profileData);
-        if (profileData?.favorite_quiz) {
-          try {
-            let parsed;
-            if (typeof profileData.favorite_quiz === 'string') {
-              parsed = JSON.parse(profileData.favorite_quiz);
-            } else {
-              parsed = profileData.favorite_quiz;
-            }
-            setFavorites(parsed.favorites || []);
-          } catch (e) {
-            console.error('Error parsing favorites:', e);
-            setFavorites([]);
-          }
-        } else {
-          setFavorites([]);
-        }
+        setProfile(result.profile)
+        setFavorites(result.favorites || [])
       }
     };
 
-    if (user) {
-      fetchProfile();
-    } else {
-      setFavorites([]);
-      setProfile(null);
-    }
-  }, [user]);
+    fetchProfile();
+  }, []); // Run once on mount, server action handles auth check
 
-  // Fetch categories once
+  // Fetch categories via Server Action
   useEffect(() => {
     const fetchCategories = async () => {
       if (!profile?.id) return;
-      const { data, error } = await supabase
-        .from('quizzes')
-        .select('category')
-        .or(`is_public.eq.true,creator_id.eq.${profile.id}`);
 
-      if (!error && data) {
-        const uniqueCats = ["All", ...new Set(data.map(q => q.category).filter(Boolean))];
-        setCategories(uniqueCats);
+      const result = await getQuizCategories(profile.id)
+
+      if (result.categories) {
+        setCategories(result.categories)
       }
     };
     fetchCategories();
   }, [profile?.id]);
 
-  // NEW: Fetch quizzes with server-side pagination
+  // Fetch quizzes via Server Action
   useEffect(() => {
     const fetchQuizzes = async () => {
       if (!profile?.id) return;
 
-      setIsFetching(true); // Subtle loading indicator
+      setIsFetching(true);
 
       try {
-        const offset = (currentPage - 1) * itemsPerPage;
+        const result = await getQuizzesPaginated({
+          profileId: profile.id,
+          searchQuery: searchQuery,
+          category: selectedCategory,
+          favorites: favoritesMode ? favorites : undefined, // server expects undefined/null if not active, or array if active
+          creatorId: myQuizzesMode ? profile.id : undefined,
+          page: currentPage,
+          limit: itemsPerPage
+        })
 
-        const { data, error } = await supabase
-          .rpc('get_quizzes_paginated', {
-            p_user_id: profile.id,
-            p_search_query: searchQuery || null,
-            p_category_filter: selectedCategory === "All" ? null : selectedCategory,
-            p_favorites_filter: favoritesMode ? favorites : null,
-            p_creator_filter: myQuizzesMode ? profile.id : null,
-            p_limit: itemsPerPage,
-            p_offset: offset
-          });
-
-        if (error) {
-          console.error("Error fetching quizzes:", error);
+        if (result.error) {
+          console.error("Error fetching quizzes:", result.error);
         } else {
-          setQuizzes(data || []);
-          // Extract total_count from first row
-          if (data && data.length > 0) {
-            setTotalCount(Number(data[0].total_count) || 0);
-          } else {
-            setTotalCount(0);
-          }
+          setQuizzes(result.quizzes || []);
+          setTotalCount(result.totalCount || 0);
         }
       } catch (error) {
         console.error("Unexpected error:", error);
@@ -211,85 +189,34 @@ export default function QuestionListPage() {
     return items;
   };
 
-  // ✅ OPTIMIZED: handleSelectQuiz - parallel insert + optimistic navigation
+  // ✅ OPTIMIZED: handleSelectQuiz - using Server Action
   async function handleSelectQuiz(quizId: string, router: any) {
     if (creating) return;
     setCreating(true);
-    setCreatingQuizId(quizId); // ✅ Track which quiz is being created
-    showLoading(); // ✅ Show global loading
-
-    const gamePin = generateGamePin();
-    const sessId = generateXID();
-    const hostId = profile?.id || user?.id;
-
-    const primarySession = {
-      id: sessId,
-      quiz_id: quizId,
-      host_id: hostId,
-      game_pin: gamePin,
-      total_time_minutes: 5,
-      question_limit: 5,
-      difficulty: "easy",
-      current_questions: [],
-      status: "waiting",
-    }
-
-    const newMainSession = {
-      ...primarySession,
-      game_end_mode: "manual",
-      allow_join_after_start: false,
-      participants: [],
-      responses: [],
-      application: "crazyrace"
-    };
+    setCreatingQuizId(quizId);
+    showLoading();
 
     try {
-      const [mainResult, gameResult] = await Promise.allSettled([
-        supabase
-          .from("game_sessions")
-          .insert(newMainSession),
-        mysupa
-          .from("sessions")
-          .insert(primarySession)
-      ]);
+      const result = await createGameSession(quizId)
 
-      const mainError = mainResult.status === 'rejected' ? mainResult.reason : mainResult.value.error;
-      const gameError = gameResult.status === 'rejected' ? gameResult.reason : gameResult.value.error;
-
-      if (mainError) {
-        console.error("Error creating session (main):", mainError);
-        // Rollback mysupa jika berhasil
-        if (!gameError) {
-          await mysupa.from("sessions").delete().eq("id", sessId);
-        }
-        setCreating(false);
-        setCreatingQuizId(null);
-        hideLoading();
-        return;
-      }
-
-      if (gameError) {
-        console.error("Error creating session (mysupa):", gameError);
-        // Rollback supabase utama
-        await supabase.from("game_sessions").delete().eq("id", sessId);
-        setCreating(false);
-        setCreatingQuizId(null);
-        hideLoading();
-        return;
+      if (result.error) {
+        throw new Error(result.error)
       }
 
       // ✅ OPTIMIZATION 2: Simpan ke localStorage dulu (instant)
-      localStorage.setItem("hostGamePin", gamePin);
-      sessionStorage.setItem("currentHostId", hostId);
+      if (result.gamePin) {
+        localStorage.setItem("hostGamePin", result.gamePin);
+        sessionStorage.setItem("currentHostId", result.hostId);
 
-      // ✅ OPTIMIZATION 3: Navigate immediately (optimistic navigation)
-      router.replace(`/host/${gamePin}/settings`);
+        // ✅ OPTIMIZATION 3: Navigate immediately
+        router.replace(`/host/${result.gamePin}/settings`);
+      }
 
-      // setCreating akan di-reset saat component unmount
     } catch (err) {
-      console.error("Unexpected error:", err);
+      console.error("Unexpected error creating session:", err);
       setCreating(false);
       setCreatingQuizId(null);
+      hideLoading();
     }
   }
 
@@ -319,78 +246,40 @@ export default function QuestionListPage() {
     await handleSelectQuiz(quizId, router);   // panggil yang bikin room + redirect
   };
 
-  // ✅ Toggle Favorite Quiz
+  // ✅ Toggle Favorite Quiz - Using Server Action
   const handleToggleFavorite = async (e: React.MouseEvent, quizId: string) => {
     e.stopPropagation();
     if (!profile?.id) return;
 
+    // Optimistic Update
     const isFavoriting = !favorites.includes(quizId);
     let newFavorites = [...favorites];
-
     if (isFavoriting) {
       newFavorites.push(quizId);
     } else {
       newFavorites = newFavorites.filter(id => id !== quizId);
     }
-
-    // Optimistic Update
     setFavorites(newFavorites);
 
     try {
-      // 1. Update profiles.favorite_quiz (array of quiz IDs per user)
-      const favoriteData = { favorites: newFavorites };
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .update({ favorite_quiz: favoriteData })
-        .eq('id', profile.id);
+      const result = await toggleFavoriteQuiz(quizId, favorites)
 
-      if (profileError) throw profileError;
-
-      // 2. Update quizzes.favorite (array of user IDs per quiz)
-      // First, get current favorite array from quiz
-      const { data: quizData, error: fetchError } = await supabase
-        .from('quizzes')
-        .select('favorite')
-        .eq('id', quizId)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      let quizFavorites: string[] = [];
-      if (quizData?.favorite) {
-        // Handle both string and array formats
-        if (typeof quizData.favorite === 'string') {
-          try {
-            quizFavorites = JSON.parse(quizData.favorite);
-          } catch {
-            quizFavorites = [];
-          }
-        } else {
-          quizFavorites = quizData.favorite;
-        }
+      if (result.error) {
+        throw new Error(result.error)
       }
 
-      // Update the array
-      if (isFavoriting) {
-        if (!quizFavorites.includes(profile.id)) {
-          quizFavorites.push(profile.id);
-        }
-      } else {
-        quizFavorites = quizFavorites.filter(id => id !== profile.id);
+      // Update state with confirmed favorites from server (optional, or just trust optimistic)
+      if (result.newFavorites) {
+        setFavorites(result.newFavorites)
       }
-
-      // Save back to quizzes table
-      const { error: quizError } = await supabase
-        .from('quizzes')
-        .update({ favorite: quizFavorites })
-        .eq('id', quizId);
-
-      if (quizError) throw quizError;
 
     } catch (err) {
       console.error("Error updating favorites:", err);
       // Revert on error
-      setFavorites(favorites);
+      setFavorites(favorites); // This reverts to 'favorites' captured in closure? 
+      // Actually 'favorites' in closure is the OLD one before setState. So this works as revert.
+      // Wait, 'newFavorites' was derived from 'favorites'. 
+      // So calling setFavorites(favorites) sets it back to what it was. Correct.
     }
   };
 
