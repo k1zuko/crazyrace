@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase"
+import { getUserProfile } from "@/app/actions/profile"
 
 interface Profile {
   id: string
@@ -24,77 +25,55 @@ const AuthContext = createContext<AuthContextType | null>(null)
 
 // Retry helper dengan exponential backoff
 async function ensureProfileWithRetry(
-  currentUser: any,
   onSuccess: (profile: Profile) => void,
   onFallback: (profile: Profile) => void,
   maxRetries = 3
 ) {
   let retryCount = 0
-  const baseDelay = 500 // 500ms
+  const baseDelay = 1000
 
   const attempt = async (): Promise<void> => {
     try {
-      // First, check if exists (quick select)
-      const { data: existing, error: selectError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('auth_user_id', currentUser.id)
-        .single()
+      // Panggil Server Action
+      const result = await getUserProfile()
 
-      if (selectError && selectError.code !== 'PGRST116') {
-        // PGRST116 = not found, yang normal. Error lain = retry
-        throw selectError
+      if ((result.status === 200 || result.status === 201) && result.profile) {
+        onSuccess(result.profile)
+        return
       }
 
-      if (existing) {
-        onSuccess(existing)
-        return // Done
+      if (result.error && result.status !== 401) {
+        throw new Error(result.error)
       }
 
-      // Create new if not exists
-      const profileData = {
-        auth_user_id: currentUser.id,
-        username: currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || 'user',
-        email: currentUser.email || '',
-        fullname: currentUser.user_metadata?.full_name || currentUser.user_metadata?.name || '',
-        avatar_url: currentUser.user_metadata?.avatar_url || currentUser.user_metadata?.picture || '',
-        updated_at: new Date().toISOString()
+      // Fallback if user exists but profile missing/failed
+      if (result.user) {
+        onFallback({
+          id: 'fallback-' + result.user.id,
+          username: result.user.email?.split('@')[0] || 'user',
+          email: result.user.email || '',
+          nickname: '',
+          fullname: '',
+          avatar_url: '',
+          auth_user_id: result.user.id
+        })
+        return
       }
 
-      const { data, error: insertError } = await supabase
-        .from('profiles')
-        .insert(profileData)
-        .select()
-        .single()
-
-      if (insertError) throw insertError
-
-      onSuccess(data)
     } catch (error: any) {
       retryCount++
 
-      // Jika masih ada retry tersisa, tunggu dan coba lagi
       if (retryCount < maxRetries) {
-        const delay = baseDelay * Math.pow(2, retryCount - 1) // 500ms, 1s, 2s
+        const delay = baseDelay * Math.pow(2, retryCount - 1)
         console.warn(
           `⚠️ Profile fetch attempt ${retryCount} failed, retrying in ${delay}ms...`,
           error.message
         )
         await new Promise(resolve => setTimeout(resolve, delay))
-        return attempt() // Recursive retry
+        return attempt()
       }
 
-      // Semua retry gagal, gunakan fallback
-      console.error('❌ Profile fetch failed after retries, using fallback:', error)
-      onFallback({
-        id: 'fallback-' + currentUser.id,
-        username: currentUser.email?.split('@')[0] || 'user',
-        email: currentUser.email || '',
-        nickname: '',
-        fullname: '',
-        avatar_url: '',
-        auth_user_id: currentUser.id
-      })
+      console.error('❌ Profile fetch failed after retries:', error)
     }
   }
 
@@ -117,7 +96,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (currentUser) {
           setIsProfileFetching(true)
           await ensureProfileWithRetry(
-            currentUser,
             (profile) => {
               setProfile(profile)
               setIsProfileFetching(false)
@@ -129,6 +107,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           )
         } else {
           setProfile(null)
+          setIsProfileFetching(false)
         }
         setLoading(false)
       } catch (error) {
@@ -149,7 +128,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Fire-and-forget retry logic di background
           setIsProfileFetching(true)
           ensureProfileWithRetry(
-            currentUser,
             (profile) => {
               setProfile(profile)
               setIsProfileFetching(false)
@@ -158,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               setProfile(fallbackProfile)
               setIsProfileFetching(false)
             }
-          ).catch(console.error) // Catch any unhandled errors
+          ).catch(console.error)
         } else if (!currentUser) {
           setProfile(null)
           setIsProfileFetching(false)

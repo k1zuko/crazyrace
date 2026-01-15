@@ -301,11 +301,7 @@ export default function HomePage() {
   useEffect(() => {
     if (authLoading) return;
     const codelink = localStorage.getItem("roomCode");
-    const code = searchParams.get("code");
-    if (code) {
-      setRoomCode(code.toUpperCase());
-      router.replace(pathname, undefined);
-    } else if (codelink) {
+    if (codelink && codelink.length === 6) {
       setRoomCode(codelink.toUpperCase());
     }
     if (
