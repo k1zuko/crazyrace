@@ -5,7 +5,7 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Clock } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
-import { mysupa, supabase } from "@/lib/supabase"
+import { mysupa } from "@/lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
 import LoadingRetro from "@/components/loadingRetro"
 import { useGlobalLoading } from "@/contexts/globalLoadingContext"
@@ -13,6 +13,13 @@ import { formatTime } from "@/utils/game"
 import { syncServerTime, getSyncedServerTime } from "@/utils/serverTime"
 import { generateXID } from "@/lib/id-generator"
 import Image from "next/image"
+import {
+  getGameDataAction,
+  submitAnswerAction,
+  submitBatchAnswersAction,
+  updateRacingStatusAction,
+  finishGameAction
+} from "@/app/actions/game-player"
 
 // Background GIFs
 const backgroundGifs = [
@@ -308,25 +315,19 @@ export default function QuizGamePage() {
   // ✅ FIX: Wrap dengan useCallback untuk menghindari race condition
   const saveProgressAndRedirect = useCallback(async () => {
     if (pendingAnswersRef.current.length > 0) {
-      await mysupa.rpc('submit_quiz_answer_batch', {
-        p_participant_id: participantId,
-        p_new_answers: pendingAnswersRef.current,
-        p_total_score_add: pendingScoreRef.current,
-        p_total_correct_add: pendingCorrectRef.current,
-        p_next_index: totalQuestions,
-        p_is_finished: true,
-        p_is_racing: false
-      });
+      await submitBatchAnswersAction(
+        participantId,
+        pendingAnswersRef.current,
+        pendingScoreRef.current,
+        pendingCorrectRef.current,
+        totalQuestions,
+        true,
+        false
+      );
 
       pendingAnswersRef.current = [];
     } else {
-      await mysupa
-        .from("participants")
-        .update({
-          completion: true,
-          finished_at: new Date(getSyncedServerTime()).toISOString()
-        })
-        .eq("id", participantId);
+      await finishGameAction(participantId, roomCode);
     }
 
     // 🧹 Hapus cache soal dari localStorage setelah game selesai
@@ -402,13 +403,10 @@ export default function QuizGamePage() {
       if (!event.data || event.data.type !== 'racing_finished' || !participantId) return;
 
       try {
-        // UPDATE LANGSUNG ke mysupa.participants → NO RPC!
-        const { error } = await mysupa
-          .from("participants")
-          .update({ racing: false })
-          .eq("id", participantId);
+        // UPDATE via server action
+        const result = await updateRacingStatusAction(participantId, false);
 
-        if (error) throw error;
+        if (result.error) throw new Error(result.error);
 
         // ✅ INSTANT: Switch back to quiz mode (no navigation!)
         setGameMode('quiz');
@@ -444,25 +442,28 @@ export default function QuizGamePage() {
     const scorePerQuestion = Math.max(1, Math.floor(100 / totalQuestions));
 
     try {
-      // Panggil RPC dengan jawaban - server akan return isCorrect dan correctAnswer
-      const serverTask = mysupa.rpc('submit_quiz_answer_secure', {
-        p_participant_id: participantId,
-        p_question_id: currentQuestion.id,
-        p_answer_index: answerIndex,
-        p_score_per_question: scorePerQuestion,
-        p_next_index: nextIndex,
-        p_is_finished: isFinished,
-        p_is_racing: isRacing,
-        p_pending_answers: pendingAnswersRef.current,
-        p_pending_score: pendingScoreRef.current,
-        p_pending_correct: pendingCorrectRef.current
-      });
+      // Panggil server action - server akan return isCorrect dan correctAnswer
+      const serverTask = submitAnswerAction(
+        participantId,
+        currentQuestion.id,
+        answerIndex,
+        scorePerQuestion,
+        nextIndex,
+        isFinished,
+        isRacing,
+        pendingAnswersRef.current,
+        pendingScoreRef.current,
+        pendingCorrectRef.current
+      );
 
       const timeoutTask = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error("Request Timeout")), 3000)
       );
 
       const result = await Promise.race([serverTask, timeoutTask]);
+
+      if ((result as any).error) throw new Error((result as any).error);
+
       const { is_correct, correct_answer } = (result as any).data || {};
 
       // Set correctAnswer dari server untuk tampilan
