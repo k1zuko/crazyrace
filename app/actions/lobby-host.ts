@@ -1,18 +1,7 @@
 'use server'
 
 import { createActionClient } from '@/lib/supabase-actions-client'
-import { createClient } from '@supabase/supabase-js'
-
-// Helper to get mysupa client for realtime DB
-const getMySupaClient = () => {
-    const mysupaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL_MINE
-    const mysupaKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_MINE
-
-    if (!mysupaUrl || !mysupaKey) {
-        throw new Error("Server configuration error: Gameplay DB not connecting")
-    }
-    return createClient(mysupaUrl, mysupaKey)
-}
+import { getMySupaServer } from '@/lib/supabase-mysupa-server'
 
 export async function getLobbyData(roomCode: string) {
     const supabase = await createActionClient()
@@ -36,7 +25,7 @@ export async function getLobbyData(roomCode: string) {
         if (!isHost) return { error: 'Unauthorized: You are not the host' }
 
         // 2. Get Realtime Session Data from Gameplay DB (mysupa)
-        const mysupa = getMySupaClient()
+        const mysupa = getMySupaServer()
         const { data: realTimeSession, error: rtError } = await mysupa
             .from("sessions")
             .select("id, status, countdown_started_at")
@@ -89,7 +78,7 @@ export async function startGame(roomCode: string, countdownStartedAt: string | n
 
         if (!isHost) return { error: 'Unauthorized' }
 
-        const mysupa = getMySupaClient()
+        const mysupa = getMySupaServer()
 
         // If countdownStartedAt is provided, we are starting countdown
         // If null (or handle specific status), we might be finishing countdown?
@@ -138,7 +127,7 @@ export async function kickPlayer(roomCode: string, participantId: string) {
         const isHost = sessionData.host_id === user.id || (profile && sessionData.host_id === profile.id);
         if (!isHost) return { error: 'Unauthorized' }
 
-        const mysupa = getMySupaClient()
+        const mysupa = getMySupaServer()
 
         // We need session_id for the delete query on participants
         const { data: rtSession } = await mysupa.from("sessions").select("id").eq("game_pin", roomCode).single()
@@ -182,7 +171,7 @@ export async function getParticipants(roomCode: string, cursor: string, limit = 
         const isHost = sessionData.host_id === user.id || (profile && sessionData.host_id === profile.id);
         if (!isHost) return { error: 'Unauthorized' }
 
-        const mysupa = getMySupaClient()
+        const mysupa = getMySupaServer()
         const { data: rtSession } = await mysupa.from("sessions").select("id").eq("game_pin", roomCode).single()
         if (!rtSession) return { error: 'RT Session not found' }
 

@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { mysupa, supabase } from "@/lib/supabase";
+import { mysupa } from "@/lib/supabase";
 import QRCode from "react-qr-code";
 import { Dialog, DialogContent, DialogOverlay } from "@/components/ui/dialog";
 import LoadingRetro from "@/components/loadingRetro";
@@ -29,8 +29,6 @@ import { t } from "i18next";
 import { getLobbyData, startGame as startGameAction, kickPlayer as kickPlayerAction, getParticipants as getParticipantsAction } from "@/app/actions/lobby-host";
 
 const APP_NAME = "crazyrace"; // Safety check for multi-tenant DB
-
-const backgroundGifs = ["/assets/background/4_v2.webp"];
 
 const carGifMap: Record<string, string> = {
   purple: "/assets/car/car1_v2.webp",
@@ -61,7 +59,6 @@ export default function HostRoomPage() {
   const [isMuted, setIsMuted] = useState(true); // Default muted
   const [hasInteracted, setHasInteracted] = useState(false);
 
-  const [currentBgIndex, setCurrentBgIndex] = useState(0);
   const [open, setOpen] = useState(false);
   const [joinLink, setJoinLink] = useState("");
   const [copiedRoom, setCopiedRoom] = useState(false);
@@ -458,22 +455,14 @@ export default function HostRoomPage() {
         preload="auto"
         className="hidden"
       />
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentBgIndex}
-          className="fixed inset-0 w-full h-full"
-          style={{
-            backgroundImage: `url(${backgroundGifs[0]})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat'
-          }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 1, ease: "easeInOut" }}
-        />
-      </AnimatePresence>
+      {/* Static Background Image */}
+      <Image
+        src="/assets/background/4_v2.webp"
+        alt="Background"
+        fill
+        className="object-cover fixed"
+        priority
+      />
       {/* Scrollable Content Wrapper */}
       <div className="absolute inset-0 overflow-y-auto z-10">
         {/* Header - Full width, ikut scroll */}

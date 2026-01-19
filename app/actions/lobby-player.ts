@@ -1,20 +1,9 @@
 'use server'
 
-import { createClient } from '@supabase/supabase-js'
-
-// Helper to get mysupa client for realtime DB
-const getMySupaClient = () => {
-    const mysupaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL_MINE
-    const mysupaKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_MINE
-
-    if (!mysupaUrl || !mysupaKey) {
-        throw new Error("Server configuration error: Gameplay DB not connecting")
-    }
-    return createClient(mysupaUrl, mysupaKey)
-}
+import { getMySupaServer } from '@/lib/supabase-mysupa-server'
 
 export async function getPlayerLobbyData(roomCode: string, participantId: string) {
-    const mysupa = getMySupaClient()
+    const mysupa = getMySupaServer()
     try {
         if (!participantId) return { error: 'No participant ID provided' }
 
@@ -64,7 +53,7 @@ export async function getPlayerLobbyData(roomCode: string, participantId: string
 }
 
 export async function prefetchGameDataAction(roomCode: string, participantId: string) {
-    const mysupa = getMySupaClient()
+    const mysupa = getMySupaServer()
     try {
         if (!participantId) return { error: 'No participant ID' }
 
@@ -118,7 +107,7 @@ export async function prefetchGameDataAction(roomCode: string, participantId: st
 }
 
 export async function leaveGameAction(participantId: string) {
-    const mysupa = getMySupaClient()
+    const mysupa = getMySupaServer()
     try {
         if (!participantId) return { error: 'No ID' }
 
@@ -136,7 +125,7 @@ export async function leaveGameAction(participantId: string) {
 }
 
 export async function updatePlayerCarAction(participantId: string, car: string) {
-    const mysupa = getMySupaClient()
+    const mysupa = getMySupaServer()
     try {
         if (!participantId) return { error: 'No ID' }
 
@@ -154,7 +143,7 @@ export async function updatePlayerCarAction(participantId: string, car: string) 
 }
 
 export async function getParticipantsAction(roomCode: string, participantId: string, cursor: string, limit = 20) {
-    const mysupa = getMySupaClient()
+    const mysupa = getMySupaServer()
     try {
         if (!participantId) return { error: 'Unauthorized' }
 
