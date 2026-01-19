@@ -14,12 +14,6 @@ import Image from "next/image"
 import { t } from "i18next"
 import { getPlayerResultAction, calculatePlayerRankAction } from "@/app/actions/game-player"
 
-
-// Background GIFs
-const backgroundGifs = [
-  "/assets/background/host/10.webp",
-]
-
 // Car GIF mappings
 const carGifMap: Record<string, string> = {
   purple: "/assets/car/car1_v2.webp",
@@ -51,7 +45,6 @@ export default function PlayerResultsPage() {
   const [loading, setLoading] = useState(true)
   const [currentPlayerStats, setCurrentPlayerStats] = useState<PlayerStats | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [currentBgIndex, setCurrentBgIndex] = useState(0)
   const hasBootstrapped = useRef(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [isGameFinished, setIsGameFinished] = useState(false);
@@ -143,13 +136,34 @@ export default function PlayerResultsPage() {
     };
   }, [sessionId, isGameFinished, currentPlayerStats]);
 
-  // Background cycling
+  // 🛡️ POLLING FALLBACK: Check if game finished every 3 seconds
+  // This ensures rank is calculated even if realtime subscription misses the update
   useEffect(() => {
-    const bgInterval = setInterval(() => {
-      setCurrentBgIndex((prev) => (prev + 1) % backgroundGifs.length)
-    }, 5000)
-    return () => clearInterval(bgInterval)
-  }, [])
+    if (!sessionId || isGameFinished || !currentPlayerStats) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const { data: sess } = await mysupa
+          .from("sessions")
+          .select("status")
+          .eq("id", sessionId)
+          .single();
+
+        if (sess?.status === 'finished') {
+          console.log("📡 Polling detected game finished");
+          setIsGameFinished(true);
+          // Calculate rank via server action
+          const rank = await calculateRank(sessionId, currentPlayerStats.participantId);
+          setPlayerRank(rank);
+          clearInterval(pollInterval);
+        }
+      } catch (err) {
+        console.error("Polling error:", err);
+      }
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [sessionId, isGameFinished, currentPlayerStats]);
 
   if (loading || error || !currentPlayerStats) {
     return (
@@ -166,18 +180,14 @@ export default function PlayerResultsPage() {
   return (
     <div className="min-h-screen bg-[#1a0a2a] relative overflow-hidden">
 
-      {/* Background */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentBgIndex}
-          className="absolute inset-0 w-full h-full bg-cover bg-center"
-          style={{ backgroundImage: `url(${backgroundGifs[currentBgIndex]})` }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 1, ease: "easeInOut" }}
-        />
-      </AnimatePresence>
+      {/* Static Background Image */}
+      <Image
+        src="/assets/background/host/10.webp"
+        alt="Background"
+        fill
+        className="object-cover"
+        priority
+      />
 
       <h1 className="absolute top-5 right-10 hidden md:block">
         <Image

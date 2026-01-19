@@ -14,8 +14,6 @@ import { useHostGuard } from "@/lib/host-guard"
 import { useGlobalLoading } from "@/contexts/globalLoadingContext"
 import { getLeaderboardDataAction, restartGameAction } from "@/app/actions/game-host"
 
-const APP_NAME = "crazyrace"; // Safety check for multi-tenant DB
-
 type PlayerStats = {
   nickname: string
   car: string
@@ -27,11 +25,6 @@ type PlayerStats = {
   rank: number
   duration: number
 }
-
-// Background GIFs (reuse from player results)
-const backgroundGifs = [
-  "/assets/background/host/10.webp",
-]
 
 const carGifMap: Record<string, string> = {
   purple: "/assets/car/car1_v2.webp",
@@ -53,22 +46,8 @@ export default function HostLeaderboardPage() {
   const [loading, setLoading] = useState(true);
   const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [currentBgIndex, setCurrentBgIndex] = useState(0);
-  const [session, setSession] = useState<any>(null); // TAMBAHKAN INI DI ATAS
+  const [session, setSession] = useState<any>(null);
   const [isRestarting, setIsRestarting] = useState(false);
-
-  const computePlayerStats = (response: any, totalQuestions: number): Omit<PlayerStats, 'nickname' | 'car' | 'rank'> => {
-    const stats = response || {};
-    const correctAnswers = stats.correct || 0;
-    const accuracy = parseFloat(stats.accuracy) || (totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0);
-    const totalSeconds = stats.duration || 0;
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = Math.floor(totalSeconds % 60);
-    const totalTime = `${mins}:${secs.toString().padStart(2, '0')}`;
-    const finalScore = stats.score || (correctAnswers * 10);
-
-    return { finalScore, correctAnswers, totalQuestions, accuracy, totalTime, duration: totalSeconds };
-  };
 
   // Fetch data via server action
   const fetchData = useCallback(async () => {
@@ -170,14 +149,6 @@ export default function HostLeaderboardPage() {
     };
   }, [roomCode, session?.id]);
 
-  // Background
-  useEffect(() => {
-    const bgInterval = setInterval(() => {
-      setCurrentBgIndex((prev) => (prev + 1) % backgroundGifs.length);
-    }, 5000);
-    return () => clearInterval(bgInterval);
-  }, []);
-
   // Restart game via server action
   const restartGame = async () => {
     if (isRestarting) return;
@@ -212,17 +183,13 @@ export default function HostLeaderboardPage() {
   if (loading) {
     return (
       <div className="h-screen bg-[#1a0a2a] relative overflow-hidden">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentBgIndex}
-            className="absolute inset-0 w-full h-full bg-cover bg-center"
-            style={{ backgroundImage: `url(${backgroundGifs[currentBgIndex]})` }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1, ease: "easeInOut" }}
-          />
-        </AnimatePresence>
+        <Image
+          src="/assets/background/host/10.webp"
+          alt="Background"
+          fill
+          className="object-cover"
+          priority
+        />
       </div>
     );
   }
@@ -230,17 +197,13 @@ export default function HostLeaderboardPage() {
   if (error || playerStats.length === 0) {
     return (
       <div className="h-screen bg-[#1a0a2a] relative overflow-hidden">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentBgIndex}
-            className="absolute inset-0 w-full h-full bg-cover bg-center"
-            style={{ backgroundImage: `url(${backgroundGifs[currentBgIndex]})` }}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 1, ease: "easeInOut" }}
-          />
-        </AnimatePresence>
+        <Image
+          src="/assets/background/host/10.webp"
+          alt="Background"
+          fill
+          className="object-cover"
+          priority
+        />
         <div className="relative z-10 max-w-4xl mx-auto p-4 text-center flex items-center justify-center h-screen">
           <Card className="bg-[#1a0a2a]/60 border-[#ff6bff]/50 pixel-card p-6">
             <h1 className="text-xl font-bold mb-2 text-[#00ffff] pixel-text glow-cyan">{t('resulthost.notAvailable')}</h1>
@@ -263,18 +226,14 @@ export default function HostLeaderboardPage() {
   return (
     <div className="h-screen bg-[#1a0a2a] relative overflow-hidden">
 
-      {/* Background */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentBgIndex}
-          className="absolute inset-0 w-full h-full bg-cover bg-center"
-          style={{ backgroundImage: `url(${backgroundGifs[currentBgIndex]})` }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 1, ease: "easeInOut" }}
-        />
-      </AnimatePresence>
+      {/* Static Background Image */}
+      <Image
+        src="/assets/background/host/10.webp"
+        alt="Background"
+        fill
+        className="object-cover"
+        priority
+      />
 
       {/* Scrollable Content Wrapper */}
       <div className="absolute inset-0 overflow-y-auto z-10">

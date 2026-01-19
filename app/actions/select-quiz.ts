@@ -1,7 +1,7 @@
 'use server'
 
 import { createActionClient } from '@/lib/supabase-actions-client'
-import { createClient } from '@supabase/supabase-js'
+import { getMySupaServer } from '@/lib/supabase-mysupa-server'
 import { generateXID } from '@/lib/id-generator'
 
 // Helper to generate game pin (moved from client)
@@ -258,20 +258,7 @@ export async function createGameSession(quizId: string) {
         if (mainError) throw mainError
 
         // 2. Write to Gameplay DB (mysupa - Realtime)
-        // Initialize the secondary client for the formatting/gameplay DB
-        const mysupaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL_MINE
-        const mysupaKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_MINE
-
-        if (!mysupaUrl || !mysupaKey) {
-            // Rollback and error
-            await supabase.from("game_sessions").delete().eq("id", sessId)
-            console.error("Missing MINE Supabase env vars")
-            throw new Error("Server configuration error: Gameplay DB not connecting")
-        }
-
-        // Since this is a server action, we use the standard createClient.
-        // We assume 'sessions' table allows public inserts or the anon key has permission.
-        const mysupa = createClient(mysupaUrl, mysupaKey)
+        const mysupa = getMySupaServer()
 
         const { error: gameError } = await mysupa
             .from("sessions")

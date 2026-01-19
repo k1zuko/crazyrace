@@ -1,53 +1,53 @@
-  <!DOCTYPE html>
-  <html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 
-  <head>
-    <title>Javascript Racer v2</title>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Tailwind CSS for modern styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      body {
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-        background-color: #1a202c;
-        /* Dark theme background */
-        color: #e2e8f0;
-        font-family: 'Inter', sans-serif;
-      }
+<head>
+  <title>Javascript Racer v2</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Tailwind CSS for modern styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #1a202c;
+      /* Dark theme background */
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
+    }
 
-      #game-container {
-        position: relative;
-        box-sizing: border-box;
-        /* Pastiin container hitung border/margin benar */
-        width: 100vw;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        align-items: center;
-      }
+    #game-container {
+      position: relative;
+      box-sizing: border-box;
+      /* Pastiin container hitung border/margin benar */
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+    }
 
-      #screen-area {
-        flex: 1;
-        width: 100%;
-        margin: 0 8px 8px 8px;
-        /* Hapus margin atas, biar nggak push ke atas berlebih. Bottom 8px aja buat jarak */
-        max-height: calc(100vh - 120px);
-        /* Default: Reserve space for controls + bezel */
-        position: relative;
-        /* Background diganti ke 6.gif */
-        background-image: url('images/background/3.webp');
-        background-size: 220vh 55vh;
-        background-position: center-top;
-        background-repeat: no-repeat;
-        border: 8px solid #333;
-        border-radius: 12px;
-        box-sizing: border-box;
-        box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
-      }
+    #screen-area {
+      flex: 1;
+      width: 100%;
+      margin: 0 8px 8px 8px;
+      /* Hapus margin atas, biar nggak push ke atas berlebih. Bottom 8px aja buat jarak */
+      max-height: calc(100vh - 120px);
+      /* Default: Reserve space for controls + bezel */
+      position: relative;
+      /* Background diganti ke 6.gif */
+      background-image: url('images/background/3.webp');
+      background-size: 220vh 55vh;
+      background-position: center-top;
+      background-repeat: no-repeat;
+      border: 8px solid #333;
+      border-radius: 12px;
+      box-sizing: border-box;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+    }
 
     @media (min-width: 768px) {
       #screen-area {
@@ -63,422 +63,432 @@
     }
 
     @media (min-width: 768px) {
-    #mobile-controls {
-      display: none !important;
+      #mobile-controls {
+        display: none !important;
+      }
     }
-  }
 
-      #canvas {
-        display: block;
-        width: 100%;
-        height: 100%;
-        border-radius: 4px;
-        /* Slight rounding inside bezel */
+    #canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: 4px;
+      /* Slight rounding inside bezel */
+    }
+
+    #controls-area {
+      box-sizing: border-box;
+      /* Border masuk ke height 120px, total pas 120px */
+      width: 100%;
+      height: 130px;
+      background: linear-gradient(to top, #1a202c, #2d3748);
+      border-top: 4px solid #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    #mobile-controls {
+      position: absolute !important;
+      bottom: 40px;
+      /* <-- ubah angka ini sesuai keinginan */
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-evenly;
+      align-items: flex-end;
+      gap: 0.5rem;
+      padding: 0 1.5rem;
+      z-index: 30;
+      /* pastikan di atas canvas */
+      pointer-events: auto;
+    }
+
+    #mobile-controls button {
+      width: auto;
+      height: auto;
+      border-radius: 0%;
+      border: none;
+      font-size: 1.2rem;
+      color: #000000;
+      background: rgb(160, 153, 153);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transition: all 0.15s ease;
+      pointer-events: auto;
+      touch-action: manipulation;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 0.25rem;
+    }
+
+    #mobile-controls button:active {
+      background: rgb(17, 104, 255);
+      transform: scale(0.95);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+
+    #accel-brake-controls,
+    #steering-controls {
+      /* Hapus atau comment out seluruh style ini, karena kita gabungkan semua tombol langsung ke #mobile-controls */
+      /* Atau ganti jadi: display: contents; biar sub-container "hilang" dan tombol langsung flex di parent */
+      display: contents;
+      gap: 1.5rem;
+    }
+
+    #controls {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      background: rgba(45, 55, 72, 0.95);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      transition: transform 0.3s ease-in-out;
+      opacity: 0;
+      /* Hide controls visually */
+      pointer-events: auto;
+      /* Keep interactive */
+    }
+
+    #controls.hidden {
+      transform: translateX(100%);
+    }
+
+    #controls-toggle {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 50;
+      opacity: 0;
+      /* Hide toggle button visually */
+      pointer-events: auto;
+      /* Keep interactive */
+    }
+
+    .retro-button {
+      position: relative;
+      padding: 16px 32px;
+      font-size: 18px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #ffeb3b;
+      background: linear-gradient(145deg, #d32f2f, #b71c1c);
+      border: none;
+      border-radius: 8px;
+      box-shadow:
+        0 6px 0 #7f0000,
+        0 8px 10px rgba(0, 0, 0, 0.5),
+        inset 0 2px 2px rgba(255, 255, 255, 0.2);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      outline: none;
+      overflow: hidden;
+    }
+
+    .retro-button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .retro-button:hover {
+      transform: translateY(2px);
+      box-shadow:
+        0 4px 0 #7f0000,
+        0 6px 8px rgba(0, 0, 0, 0.4),
+        inset 0 2px 2px rgba(255, 255, 255, 0.2);
+      background: linear-gradient(145deg, #c62828, #9a0007);
+    }
+
+    .retro-button:active {
+      transform: translateY(6px);
+      box-shadow:
+        0 0 0 #7f0000,
+        0 2px 4px rgba(0, 0, 0, 0.3),
+        inset 0 2px 2px rgba(255, 255, 255, 0.2);
+    }
+
+    .retro-button:hover::before {
+      left: 100%;
+    }
+
+    .retro-button:focus {
+      box-shadow:
+        0 6px 0 #7f0000,
+        0 8px 10px rgba(0, 0, 0, 0.5),
+        0 0 0 3px rgba(255, 235, 59, 0.5),
+        inset 0 2px 2px rgba(255, 255, 255, 0.2);
+    }
+
+    .retro-button::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.4) 0%, transparent 70%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .retro-button:hover::after {
+      opacity: 1;
+    }
+
+    #instructions {
+      position: fixed;
+      bottom: 1rem;
+      left: 1rem;
+      background: rgba(45, 55, 72, 0.95);
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+    }
+
+    #hud {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      background: rgba(45, 55, 72, 0.95);
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      opacity: 0;
+      /* Hide HUD visually */
+      pointer-events: none;
+      /* Disable pointer events for HUD */
+    }
+
+    .hud .value {
+      color: #ed8936;
+      /* Orange for values */
+    }
+
+    select,
+    input[type="range"] {
+      background: #4a5568;
+      color: #e2e8f0;
+      border: none;
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      width: 100%;
+    }
+
+    label {
+      font-size: 0.875rem;
+      color: #a0aec0;
+    }
+
+    #finish-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      flex-direction: column;
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+    }
+
+    #finish-screen h2 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      color: #ffeb3b;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    #finish-screen p {
+      font-size: 1.2rem;
+      margin-bottom: 2rem;
+      text-align: center;
+      max-width: 80%;
+    }
+
+    #desktop-controls {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      z-index: 100;
+      display: none;
+      /* Default disembunyikan */
+    }
+
+    @media (min-width: 768px) {
+      #desktop-controls {
+        display: grid;
+        grid-template-columns: 60px 60px 60px;
+        grid-template-rows: 60px 60px;
+        grid-template-areas:
+          ". up ."
+          "left center right"
+          ". down .";
+        gap: 8px;
       }
+    }
 
-      #controls-area {
-        box-sizing: border-box;
-        /* Border masuk ke height 120px, total pas 120px */
-        width: 100%;
-        height: 130px;
-        background: linear-gradient(to top, #1a202c, #2d3748);
-        border-top: 4px solid #333;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        position: relative;
-        box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.5);
-      }
+    .desk-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 0px;
+      /* sudut melengkung ringan (bisa diganti 0px kalau mau kotak lurus) */
 
-#mobile-controls {
-  position: absolute !important;
-  bottom: 40px;                /* <-- ubah angka ini sesuai keinginan */
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-evenly;
-  align-items: flex-end;
-  gap: 0.5rem;
-  padding: 0 1.5rem;
-  z-index: 30;                 /* pastikan di atas canvas */
-  pointer-events: auto;
-}
+      display: flex;
+      align-items: center;
+      justify-content: center;
 
-      #mobile-controls button {
-        width: auto;
-        height: auto;
-        border-radius: 0%;
-        border: none;
-        font-size: 1.2rem;
-        color: #000000;
-        background: rgb(160, 153, 153);
-        backdrop-filter: blur(10px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        transition: all 0.15s ease;
-        pointer-events: auto;
-        touch-action: manipulation;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin: 0 0.25rem;
-      }
+      transition: all 0.15s ease;
+      overflow: visible;
+      /* penting! biar gambar tidak dipotong */
+    }
 
-      #mobile-controls button:active {
-        background: rgb(17, 104, 255);
-        transform: scale(0.95);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
-      }
+    .desk-btn img {
+      width: 100%;
+      /* gambar di dalam tombol jadi lebih besar */
+      height: 100%;
+      object-fit: contain;
+    }
 
-      #accel-brake-controls,
-      #steering-controls {
-        /* Hapus atau comment out seluruh style ini, karena kita gabungkan semua tombol langsung ke #mobile-controls */
-        /* Atau ganti jadi: display: contents; biar sub-container "hilang" dan tombol langsung flex di parent */
-        display: contents;
-        gap: 1.5rem;
-      }
+    .desk-btn:active {
 
-      #controls {
-        position: fixed;
-        top: 1rem;
-        right: 1rem;
-        background: rgba(45, 55, 72, 0.95);
-        border-radius: 0.5rem;
-        padding: 1rem;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-        transition: transform 0.3s ease-in-out;
-        opacity: 0;
-        /* Hide controls visually */
-        pointer-events: auto;
-        /* Keep interactive */
-      }
+      transform: scale(0.95);
 
-      #controls.hidden {
-        transform: translateX(100%);
-      }
+    }
+  </style>
+</head>
 
-      #controls-toggle {
-        position: fixed;
-        top: 1rem;
-        right: 1rem;
-        z-index: 50;
-        opacity: 0;
-        /* Hide toggle button visually */
-        pointer-events: auto;
-        /* Keep interactive */
-      }
+<body>
+  <div id="controls-info" class="hidden bg-gray-800 text-white p-4 rounded-lg shadow-lg"
+    style="position: fixed; top: 1rem; right: 1rem; z-index: 100; opacity: 1; transition: opacity 0.5s ease-out;">
+    <p>Use <strong>WASD</strong> or <strong>Arrow Keys</strong> to move.</p>
+  </div>
+  <div id="game-container">
+    <div id="screen-area">
+      <button id="controls-toggle"
+        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition">Controls</button>
+      <table id="controls" class="hidden">
+        <tr>
+          <td colspan="2">
+            <a href='v1.straight.html'>straight</a> |
+            <a href='v2.curves.html'>curves</a> |
+            <a href='v3.hills.html'>hills</a> |
+            <a href='v4.final.html'>final</a>
+          </td>
+        </tr>
+        <tr>
+          <td id="fps" colspan="2" class="text-right text-sm text-gray-400"></td>
+        </tr>
+        <tr>
+          <th><label for="resolution">Resolution:</label></th>
+          <td>
+            <select id="resolution">
+              <option value="fine">Fine (1280x960)</option>
+              <option selected value="high">High (1024x768)</option>
+              <option value="medium">Medium (640x480)</option>
+              <option value="low">Low (480x360)</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <th><label for="lanes">Lanes:</label></th>
+          <td>
+            <select id="lanes">
+              <option>1</option>
+              <option>2</option>
+              <option selected>3</option>
+              <option>4</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <th><label for="roadWidth">Road Width (<span id="currentRoadWidth"></span>):</label></th>
+          <td><input id="roadWidth" type="range" min="500" max="3000" title="integer (500-3000)"></td>
+        </tr>
+        <tr>
+          <th><label for="cameraHeight">Camera Height (<span id="currentCameraHeight"></span>):</label></th>
+          <td><input id="cameraHeight" type="range" min="500" max="5000" title="integer (500-5000)"></td>
+        </tr>
+        <tr>
+          <th><label for="drawDistance">Draw Distance (<span id="currentDrawDistance"></span>):</label></th>
+          <td><input id="drawDistance" type="range" min="100" max="500" title="integer (100-500)"></td>
+        </tr>
+        <tr>
+          <th><label for="fieldOfView">Field of View (<span id="currentFieldOfView"></span>):</label></th>
+          <td><input id="fieldOfView" type="range" min="80" max="140" title="integer (80-140)"></td>
+        </tr>
+        <tr>
+          <th><label for="fogDensity">Fog Density (<span id="currentFogDensity"></span>):</label></th>
+          <td><input id="fogDensity" type="range" min="0" max="50" title="integer (0-50)"></td>
+        </tr>
+      </table>
 
-      .retro-button {
-        position: relative;
-        padding: 16px 32px;
-        font-size: 18px;
-        font-weight: bold;
-        text-transform: uppercase;
-        letter-spacing: 2px;
-        color: #ffeb3b;
-        background: linear-gradient(145deg, #d32f2f, #b71c1c);
-        border: none;
-        border-radius: 8px;
-        box-shadow:
-          0 6px 0 #7f0000,
-          0 8px 10px rgba(0, 0, 0, 0.5),
-          inset 0 2px 2px rgba(255, 255, 255, 0.2);
-        cursor: pointer;
-        transition: all 0.2s ease;
-        outline: none;
-        overflow: hidden;
-      }
-
-      .retro-button::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-        transition: left 0.5s ease;
-      }
-
-      .retro-button:hover {
-        transform: translateY(2px);
-        box-shadow:
-          0 4px 0 #7f0000,
-          0 6px 8px rgba(0, 0, 0, 0.4),
-          inset 0 2px 2px rgba(255, 255, 255, 0.2);
-        background: linear-gradient(145deg, #c62828, #9a0007);
-      }
-
-      .retro-button:active {
-        transform: translateY(6px);
-        box-shadow:
-          0 0 0 #7f0000,
-          0 2px 4px rgba(0, 0, 0, 0.3),
-          inset 0 2px 2px rgba(255, 255, 255, 0.2);
-      }
-
-      .retro-button:hover::before {
-        left: 100%;
-      }
-
-      .retro-button:focus {
-        box-shadow:
-          0 6px 0 #7f0000,
-          0 8px 10px rgba(0, 0, 0, 0.5),
-          0 0 0 3px rgba(255, 235, 59, 0.5),
-          inset 0 2px 2px rgba(255, 255, 255, 0.2);
-      }
-
-      .retro-button::after {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: radial-gradient(circle at center, rgba(255, 255, 255, 0.4) 0%, transparent 70%);
-        opacity: 0;
-        transition: opacity 0.3s ease;
-      }
-
-      .retro-button:hover::after {
-        opacity: 1;
-      }
-
-      #instructions {
-        position: fixed;
-        bottom: 1rem;
-        left: 1rem;
-        background: rgba(45, 55, 72, 0.95);
-        padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
-      }
-
-      #hud {
-        position: fixed;
-        top: 1rem;
-        left: 1rem;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-        background: rgba(45, 55, 72, 0.95);
-        padding: 0.5rem 1rem;
-        border-radius: 0.5rem;
-        opacity: 0;
-        /* Hide HUD visually */
-        pointer-events: none;
-        /* Disable pointer events for HUD */
-      }
-
-      .hud .value {
-        color: #ed8936;
-        /* Orange for values */
-      }
-
-      select,
-      input[type="range"] {
-        background: #4a5568;
-        color: #e2e8f0;
-        border: none;
-        padding: 0.5rem;
-        border-radius: 0.25rem;
-        width: 100%;
-      }
-
-      label {
-        font-size: 0.875rem;
-        color: #a0aec0;
-      }
-
-      #finish-screen {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0, 0, 0, 0.8);
-        display: none;
-        justify-content: center;
-        align-items: center;
-        z-index: 100;
-        flex-direction: column;
-        color: #fff;
-        font-family: 'Inter', sans-serif;
-      }
-
-      #finish-screen h2 {
-        font-size: 2.5rem;
-        margin-bottom: 1rem;
-        color: #ffeb3b;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-      }
-
-      #finish-screen p {
-        font-size: 1.2rem;
-        margin-bottom: 2rem;
-        text-align: center;
-        max-width: 80%;
-      }
-  #desktop-controls {
-    position: fixed;
-    bottom: 20px;
-    left: 20px;
-    z-index: 100;
-    display: none; /* Default disembunyikan */
-  }
-
-  @media (min-width: 768px) {
-  #desktop-controls {
-    display: grid;
-    grid-template-columns: 60px 60px 60px;
-    grid-template-rows: 60px 60px;
-    grid-template-areas:
-      ". up ."
-      "left center right"
-      ". down .";
-    gap: 8px;
-  }
-}
-
-.desk-btn {
-  width: 80px;
-  height: 80px;
-  border-radius: 0px;           /* sudut melengkung ringan (bisa diganti 0px kalau mau kotak lurus) */
- 
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  transition: all 0.15s ease;
-  overflow: visible;             /* penting! biar gambar tidak dipotong */
-}
-
-.desk-btn img {
-  width: 100%;           /* gambar di dalam tombol jadi lebih besar */
-  height: 100%;
-  object-fit: contain;
-}
-
-.desk-btn:active {
-
-  transform: scale(0.95);
- 
-}
-    </style>
-  </head>
-
-  <body>
-    <div id="controls-info" class="hidden bg-gray-800 text-white p-4 rounded-lg shadow-lg" style="position: fixed; top: 1rem; right: 1rem; z-index: 100; opacity: 1; transition: opacity 0.5s ease-out;">
-      <p>Use <strong>WASD</strong> or <strong>Arrow Keys</strong> to move.</p>
+      <div id="racer">
+        <div id="hud">
+          <span id="speed" class="hud">Speed: <span id="speed_value" class="value">0</span> mph</span>
+          <span id="current_lap_time" class="hud">Time: <span id="current_lap_time_value"
+              class="value">0.0</span></span>
+          <span id="last_lap_time" class="hud">Last Lap: <span id="last_lap_time_value" class="value">0.0</span></span>
+          <span id="fast_lap_time" class="hud">Fastest Lap: <span id="fast_lap_time_value"
+              class="value">0.0</span></span>
+        </div>
+        <canvas id="canvas">
+          Sorry, this example cannot be run because your browser does not support the &lt;canvas&gt; element
+        </canvas>
+      </div>
     </div>
-    <div id="game-container">
-      <div id="screen-area">
-        <button id="controls-toggle"
-          class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition">Controls</button>
-        <table id="controls" class="hidden">
-          <tr>
-            <td colspan="2">
-              <a href='v1.straight.html'>straight</a> |
-              <a href='v2.curves.html'>curves</a>     |
-              <a href='v3.hills.html'>hills</a>       |
-              <a href='v4.final.html'>final</a>
-            </td>
-          </tr>
-          <tr><td id="fps" colspan="2" class="text-right text-sm text-gray-400"></td></tr>
-          <tr>
-            <th><label for="resolution">Resolution:</label></th>
-            <td>
-              <select id="resolution">
-                <option value="fine">Fine (1280x960)</option>
-                <option selected value="high">High (1024x768)</option>
-                <option value="medium">Medium (640x480)</option>
-                <option value="low">Low (480x360)</option>
-              </select>
-            </td>
-          </tr>
-          <tr>
-            <th><label for="lanes">Lanes:</label></th>
-            <td>
-              <select id="lanes">
-                <option>1</option>
-                <option>2</option>
-                <option selected>3</option>
-                <option>4</option>
-              </select>
-            </td>
-          </tr>
-          <tr>
-            <th><label for="roadWidth">Road Width (<span id="currentRoadWidth"></span>):</label></th>
-            <td><input id="roadWidth" type="range" min="500" max="3000" title="integer (500-3000)"></td>
-          </tr>
-          <tr>
-            <th><label for="cameraHeight">Camera Height (<span id="currentCameraHeight"></span>):</label></th>
-            <td><input id="cameraHeight" type="range" min="500" max="5000" title="integer (500-5000)"></td>
-          </tr>
-          <tr>
-            <th><label for="drawDistance">Draw Distance (<span id="currentDrawDistance"></span>):</label></th>
-            <td><input id="drawDistance" type="range" min="100" max="500" title="integer (100-500)"></td>
-          </tr>
-          <tr>
-            <th><label for="fieldOfView">Field of View (<span id="currentFieldOfView"></span>):</label></th>
-            <td><input id="fieldOfView" type="range" min="80" max="140" title="integer (80-140)"></td>
-          </tr>
-          <tr>
-            <th><label for="fogDensity">Fog Density (<span id="currentFogDensity"></span>):</label></th>
-            <td><input id="fogDensity" type="range" min="0" max="50" title="integer (0-50)"></td>
-          </tr>
-        </table>
+    <div id="controls-area">
 
-        <div id="racer">
-          <div id="hud">
-            <span id="speed" class="hud">Speed: <span id="speed_value" class="value">0</span> mph</span>
-            <span id="current_lap_time" class="hud">Time: <span id="current_lap_time_value"
-                class="value">0.0</span></span>
-            <span id="last_lap_time" class="hud">Last Lap: <span id="last_lap_time_value" class="value">0.0</span></span>
-            <span id="fast_lap_time" class="hud">Fastest Lap: <span id="fast_lap_time_value"
-                class="value">0.0</span></span>
-          </div>
-          <canvas id="canvas">
-            Sorry, this example cannot be run because your browser does not support the &lt;canvas&gt; element
-          </canvas>
+      <div id="mobile-controls" class="md:hidden"> <!-- md:hidden = Tailwind: sembunyi di ≥768px -->
+        <div id="steering-controls">
+          <button id="left" class="control-btn" title="Steer Left">
+            <img src="./images/left.webp" alt="Steer Left" width="100%">
+          </button>
+          <button id="right" class="control-btn" title="Steer Right">
+            <img src="./images/right.webp" alt="Steer Right" width="100%">
+          </button>
+        </div>
+        <div id="accel-brake-controls">
+          <button id="brake" class="control-btn" title="Brake">
+            <img src="./images/down.webp" alt="Brake" width="100%">
+          </button>
+          <button id="accel" class="control-btn" title="Accelerate">
+            <img src="./images/up.webp" alt="Accelerate" width="100%">
+          </button>
         </div>
       </div>
-      <div id="controls-area">
-
-<div id="mobile-controls" class="md:hidden">  <!-- md:hidden = Tailwind: sembunyi di ≥768px -->
-    <div id="accel-brake-controls">
-      <button id="brake" class="control-btn" title="Brake">
-        <img src="./images/down.webp" alt="Brake" width="100%">
-      </button>
-      <button id="accel" class="control-btn" title="Accelerate">
-        <img src="./images/up.webp" alt="Accelerate" width="100%">
-      </button>
-    </div>
-    <div id="steering-controls">
-      <button id="left" class="control-btn" title="Steer Left">
-        <img src="./images/left.webp" alt="Steer Left" width="100%">
-      </button>
-      <button id="right" class="control-btn" title="Steer Right">
-        <img src="./images/right.webp" alt="Steer Right" width="100%">
-      </button>
-    </div>
-  </div>
     </div>
 
     <div id="desktop-controls">
-    <div class="desk-btn" id="desk-up" style="grid-area: up;">
-      <img src="./images/up.webp" alt="Accelerate" class="w-full h-full object-contain">
+      <div class="desk-btn" id="desk-up" style="grid-area: up;">
+        <img src="./images/up.webp" alt="Accelerate" class="w-full h-full object-contain">
+      </div>
+      <div class="desk-btn" id="desk-left" style="grid-area: left;">
+        <img src="./images/left.webp" alt="Left" class="w-full h-full object-contain">
+      </div>
+      <div class="desk-btn center" style="grid-area: center;"></div>
+      <div class="desk-btn" id="desk-right" style="grid-area: right;">
+        <img src="./images/right.webp" alt="Right" class="w-full h-full object-contain">
+      </div>
+      <div class="desk-btn" id="desk-down" style="grid-area: down;">
+        <img src="./images/down.webp" alt="Brake" class="w-full h-full object-contain">
+      </div>
     </div>
-    <div class="desk-btn" id="desk-left" style="grid-area: left;">
-      <img src="./images/left.webp" alt="Left" class="w-full h-full object-contain">
-    </div>
-    <div class="desk-btn center" style="grid-area: center;"></div>
-    <div class="desk-btn" id="desk-right" style="grid-area: right;">
-      <img src="./images/right.webp" alt="Right" class="w-full h-full object-contain">
-    </div>
-    <div class="desk-btn" id="desk-down" style="grid-area: down;">
-      <img src="./images/down.webp" alt="Brake" class="w-full h-full object-contain">
-    </div>
-  </div>
 
     <!-- Finish Screen Overlay -->
     <div id="finish-screen">
@@ -575,11 +585,11 @@
         triggerHapticFeedback('light');
       }
 
-        function update(dt) {
-          if (gameFinished) { speed = 0; return; }
-          var n, car, carW;  // TAMBAH INI
-          var playerSegment = findSegment(position + playerZ);
-          var playerW = SPRITES.PLAYER_STRAIGHT.w * SPRITES.SCALE;
+      function update(dt) {
+        if (gameFinished) { speed = 0; return; }
+        var n, car, carW;  // TAMBAH INI
+        var playerSegment = findSegment(position + playerZ);
+        var playerW = SPRITES.PLAYER_STRAIGHT.w * SPRITES.SCALE;
 
         var playerSegment = findSegment(position + playerZ);
         var playerW = SPRITES.PLAYER_STRAIGHT.w * SPRITES.SCALE;
@@ -612,16 +622,16 @@
           speed = Util.accelerate(speed, offRoadDecel, dt);
 
         for (n = 0; n < playerSegment.cars.length; n++) {
-            car = playerSegment.cars[n];
-            carW = car.sprite.w * SPRITES.SCALE;
-        if (speed > car.speed) {
-          if (Util.overlap(playerX, playerW, car.offset, carW, 0.8)) {
-            speed = car.speed * (car.speed / speed);
-            position = Util.increase(car.z, -playerZ, trackLength);
-            break;
+          car = playerSegment.cars[n];
+          carW = car.sprite.w * SPRITES.SCALE;
+          if (speed > car.speed) {
+            if (Util.overlap(playerX, playerW, car.offset, carW, 0.8)) {
+              speed = car.speed * (car.speed / speed);
+              position = Util.increase(car.z, -playerZ, trackLength);
+              break;
+            }
           }
         }
-      }
 
         playerX = Util.limit(playerX, -2, 2);
         speed = Util.limit(speed, 0, maxSpeed);
@@ -709,7 +719,7 @@
           dx = dx + segment.curve;
 
           if ((segment.p1.camera.z <= cameraDepth) ||
-              (segment.p2.screen.y >= maxy))
+            (segment.p2.screen.y >= maxy))
             continue;
 
           Render.segment(ctx, width, lanes,
@@ -722,23 +732,23 @@
             segment.fog,
             segment.color);
 
-   
+
           maxy = segment.p2.screen.y;
           segment.clip = maxy;  // TAMBAH INI
         }
 
         for (n = (drawDistance - 1); n > 0; n--) {
-        segment = segments[(baseSegment.index + n) % segments.length];
-        var i, car, sprite, spriteScale, spriteX, spriteY;
-        for (i = 0; i < segment.cars.length; i++) {
-          car = segment.cars[i];
-          sprite = car.sprite;
-          spriteScale = Util.interpolate(segment.p1.screen.scale, segment.p2.screen.scale, car.percent);
-          spriteX = Util.interpolate(segment.p1.screen.x, segment.p2.screen.x, car.percent) + (spriteScale * car.offset * roadWidth * width / 2);
-          spriteY = Util.interpolate(segment.p1.screen.y, segment.p2.screen.y, car.percent);
-          Render.sprite(ctx, width, height, resolution, roadWidth, sprites, car.sprite, spriteScale, spriteX, spriteY, -0.5, -1, segment.p1.screen.y);
+          segment = segments[(baseSegment.index + n) % segments.length];
+          var i, car, sprite, spriteScale, spriteX, spriteY;
+          for (i = 0; i < segment.cars.length; i++) {
+            car = segment.cars[i];
+            sprite = car.sprite;
+            spriteScale = Util.interpolate(segment.p1.screen.scale, segment.p2.screen.scale, car.percent);
+            spriteX = Util.interpolate(segment.p1.screen.x, segment.p2.screen.x, car.percent) + (spriteScale * car.offset * roadWidth * width / 2);
+            spriteY = Util.interpolate(segment.p1.screen.y, segment.p2.screen.y, car.percent);
+            Render.sprite(ctx, width, height, resolution, roadWidth, sprites, car.sprite, spriteScale, spriteX, spriteY, -0.5, -1, segment.p1.screen.y);
+          }
         }
-      }
 
         Render.player(ctx, width, height, resolution, roadWidth, sprites, speed / maxSpeed,
           cameraDepth / playerZ,
@@ -748,17 +758,17 @@
           0);
       }
 
-        function addSegment(curve) {
-          var n = segments.length;
-          segments.push({
-            index: n,
-            p1: { world: { z: n * segmentLength }, camera: {}, screen: {} },
-            p2: { world: { z: (n + 1) * segmentLength }, camera: {}, screen: {} },
-            curve: curve,
-            cars: [],  // Tambahkan ini
-            color: Math.floor(n / rumbleLength) % 2 ? COLORS.DARK : COLORS.LIGHT
-          });
-        }
+      function addSegment(curve) {
+        var n = segments.length;
+        segments.push({
+          index: n,
+          p1: { world: { z: n * segmentLength }, camera: {}, screen: {} },
+          p2: { world: { z: (n + 1) * segmentLength }, camera: {}, screen: {} },
+          curve: curve,
+          cars: [],  // Tambahkan ini
+          color: Math.floor(n / rumbleLength) % 2 ? COLORS.DARK : COLORS.LIGHT
+        });
+      }
 
       function addRoad(enter, hold, leave, curve) {
         var n;
@@ -836,50 +846,50 @@
       }
 
       function updateCars(dt, playerSegment, playerW) {
-      var n, car, oldSegment, newSegment;
-      for (n = 0; n < cars.length; n++) {
-        car = cars[n];
-        oldSegment = findSegment(car.z);
-        car.offset = car.offset + updateCarOffset(car, oldSegment, playerSegment, playerW);
-        car.z = Util.increase(car.z, dt * car.speed, trackLength);
-        car.percent = Util.percentRemaining(car.z, segmentLength);
-        newSegment = findSegment(car.z);
-        if (oldSegment != newSegment) {
-          var index = oldSegment.cars.indexOf(car);
-          oldSegment.cars.splice(index, 1);
-          newSegment.cars.push(car);
-        }
-      }
-    }
-
-function updateCarOffset(car, carSegment, playerSegment, playerW) {
-  var i, j, dir, segment, otherCar, otherCarW, lookahead = 10, carW = car.sprite.w * SPRITES.SCALE;  // lookahead=10
-  if ((carSegment.index - playerSegment.index) > drawDistance) return 0;
-  for (i = 1; i < lookahead; i++) {
-    segment = segments[(carSegment.index + i) % segments.length];
-    if ((segment === playerSegment) && (car.speed > speed) && (Util.overlap(playerX, playerW, car.offset, carW, 1.2))) {
-      // HAPUS: if (options.totalCars) ... (baris ini bikin error!)
-      if (playerX > 0.5) dir = -1; // Opsional, untuk tweak UI jika perlu
-          if (playerX > 0.5) dir = -1;
-          else if (playerX < -0.5) dir = 1;
-          else dir = (car.offset > playerX) ? 1 : -1;
-          return dir * 1 / i * (car.speed - speed) / maxSpeed;
-        }
-        for (j = 0; j < segment.cars.length; j++) {
-          otherCar = segment.cars[j];
-          otherCarW = otherCar.sprite.w * SPRITES.SCALE;
-          if ((car.speed > otherCar.speed) && Util.overlap(car.offset, carW, otherCar.offset, otherCarW, 1.2)) {
-            if (otherCar.offset > 0.5) dir = -1;
-            else if (otherCar.offset < -0.5) dir = 1;
-            else dir = (car.offset > otherCar.offset) ? 1 : -1;
-            return dir * 1 / i * (car.speed - otherCar.speed) / maxSpeed;
+        var n, car, oldSegment, newSegment;
+        for (n = 0; n < cars.length; n++) {
+          car = cars[n];
+          oldSegment = findSegment(car.z);
+          car.offset = car.offset + updateCarOffset(car, oldSegment, playerSegment, playerW);
+          car.z = Util.increase(car.z, dt * car.speed, trackLength);
+          car.percent = Util.percentRemaining(car.z, segmentLength);
+          newSegment = findSegment(car.z);
+          if (oldSegment != newSegment) {
+            var index = oldSegment.cars.indexOf(car);
+            oldSegment.cars.splice(index, 1);
+            newSegment.cars.push(car);
           }
         }
       }
-      if (car.offset < -0.9) return 0.1;
-      else if (car.offset > 0.9) return -0.1;
-      else return 0;
-    }
+
+      function updateCarOffset(car, carSegment, playerSegment, playerW) {
+        var i, j, dir, segment, otherCar, otherCarW, lookahead = 10, carW = car.sprite.w * SPRITES.SCALE;  // lookahead=10
+        if ((carSegment.index - playerSegment.index) > drawDistance) return 0;
+        for (i = 1; i < lookahead; i++) {
+          segment = segments[(carSegment.index + i) % segments.length];
+          if ((segment === playerSegment) && (car.speed > speed) && (Util.overlap(playerX, playerW, car.offset, carW, 1.2))) {
+            // HAPUS: if (options.totalCars) ... (baris ini bikin error!)
+            if (playerX > 0.5) dir = -1; // Opsional, untuk tweak UI jika perlu
+            if (playerX > 0.5) dir = -1;
+            else if (playerX < -0.5) dir = 1;
+            else dir = (car.offset > playerX) ? 1 : -1;
+            return dir * 1 / i * (car.speed - speed) / maxSpeed;
+          }
+          for (j = 0; j < segment.cars.length; j++) {
+            otherCar = segment.cars[j];
+            otherCarW = otherCar.sprite.w * SPRITES.SCALE;
+            if ((car.speed > otherCar.speed) && Util.overlap(car.offset, carW, otherCar.offset, otherCarW, 1.2)) {
+              if (otherCar.offset > 0.5) dir = -1;
+              else if (otherCar.offset < -0.5) dir = 1;
+              else dir = (car.offset > otherCar.offset) ? 1 : -1;
+              return dir * 1 / i * (car.speed - otherCar.speed) / maxSpeed;
+            }
+          }
+        }
+        if (car.offset < -0.9) return 0.1;
+        else if (car.offset > 0.9) return -0.1;
+        else return 0;
+      }
 
       function findSegment(z) {
         return segments[Math.floor(z / segmentLength) % segments.length];
@@ -976,10 +986,10 @@ function updateCarOffset(car, carSegment, playerSegment, playerW) {
       }
 
       // Fungsi untuk update visibilitas kontrol mobile berdasarkan lebar layar
- 
+
       window.addEventListener('resize', () => {
         resizeCanvas();
-        
+
       });
 
       resizeCanvas();
@@ -1010,7 +1020,7 @@ function updateCarOffset(car, carSegment, playerSegment, playerW) {
     </script>
 
     <script>
-      document.addEventListener('DOMContentLoaded', function() {
+      document.addEventListener('DOMContentLoaded', function () {
         const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
         if (!isTouchDevice) {
           const controlsInfo = document.getElementById('controls-info');
@@ -1025,41 +1035,41 @@ function updateCarOffset(car, carSegment, playerSegment, playerW) {
           }
         }
       });
-      const deskUp    = document.getElementById('desk-up');
-const deskDown  = document.getElementById('desk-down');
-const deskLeft  = document.getElementById('desk-left');
-const deskRight = document.getElementById('desk-right');
+      const deskUp = document.getElementById('desk-up');
+      const deskDown = document.getElementById('desk-down');
+      const deskLeft = document.getElementById('desk-left');
+      const deskRight = document.getElementById('desk-right');
 
-function handlePress(flagSetter) {
-  return function(e) {
-    e.preventDefault();
-    if (!gameFinished) flagSetter(true);
-  };
-}
+      function handlePress(flagSetter) {
+        return function (e) {
+          e.preventDefault();
+          if (!gameFinished) flagSetter(true);
+        };
+      }
 
-function handleRelease(flagSetter) {
-  return function(e) {
-    e.preventDefault();
-    flagSetter(false);
-  };
-}
+      function handleRelease(flagSetter) {
+        return function (e) {
+          e.preventDefault();
+          flagSetter(false);
+        };
+      }
 
-deskUp.addEventListener('mousedown', handlePress(() => { keyFaster = true; }));
-deskUp.addEventListener('mouseup',   handleRelease(() => { keyFaster = false; }));
-deskUp.addEventListener('mouseleave', handleRelease(() => { keyFaster = false; }));
+      deskUp.addEventListener('mousedown', handlePress(() => { keyFaster = true; }));
+      deskUp.addEventListener('mouseup', handleRelease(() => { keyFaster = false; }));
+      deskUp.addEventListener('mouseleave', handleRelease(() => { keyFaster = false; }));
 
-deskDown.addEventListener('mousedown', handlePress(() => { keySlower = true; }));
-deskDown.addEventListener('mouseup',   handleRelease(() => { keySlower = false; }));
-deskDown.addEventListener('mouseleave', handleRelease(() => { keySlower = false; }));
+      deskDown.addEventListener('mousedown', handlePress(() => { keySlower = true; }));
+      deskDown.addEventListener('mouseup', handleRelease(() => { keySlower = false; }));
+      deskDown.addEventListener('mouseleave', handleRelease(() => { keySlower = false; }));
 
-deskLeft.addEventListener('mousedown', handlePress(() => { keyLeft = true; }));
-deskLeft.addEventListener('mouseup',   handleRelease(() => { keyLeft = false; }));
-deskLeft.addEventListener('mouseleave', handleRelease(() => { keyLeft = false; }));
+      deskLeft.addEventListener('mousedown', handlePress(() => { keyLeft = true; }));
+      deskLeft.addEventListener('mouseup', handleRelease(() => { keyLeft = false; }));
+      deskLeft.addEventListener('mouseleave', handleRelease(() => { keyLeft = false; }));
 
-deskRight.addEventListener('mousedown', handlePress(() => { keyRight = true; }));
-deskRight.addEventListener('mouseup',   handleRelease(() => { keyRight = false; }));
-deskRight.addEventListener('mouseleave', handleRelease(() => { keyRight = false; }));
+      deskRight.addEventListener('mousedown', handlePress(() => { keyRight = true; }));
+      deskRight.addEventListener('mouseup', handleRelease(() => { keyRight = false; }));
+      deskRight.addEventListener('mouseleave', handleRelease(() => { keyRight = false; }));
     </script>
-  </body>
+</body>
 
-  </html>
+</html>
