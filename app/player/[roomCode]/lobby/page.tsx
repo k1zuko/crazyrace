@@ -53,7 +53,7 @@ export default function LobbyPage() {
   const params = useParams()
   const router = useRouter()
   const roomCode = params.roomCode as string
-  const { hideLoading } = useGlobalLoading()
+  const { showLoading, hideLoading } = useGlobalLoading()
 
   const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -319,7 +319,6 @@ export default function LobbyPage() {
     hasBootstrapped.current = true;
 
     let sessionChannel: any = null;
-    let participantsChannel: any = null;
 
     const bootstrap = async () => {
       setLoading(true);
@@ -404,47 +403,6 @@ export default function LobbyPage() {
         )
         .subscribe();
 
-      participantsChannel = mysupa
-        .channel(`participants:${roomCode}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "participants",
-            filter: `session_id=eq.${fetchedSession.id}`,
-          },
-          (payload) => {
-            if (payload.eventType === "INSERT") {
-              setParticipants(prev => [...prev, payload.new]);
-            }
-
-            if (payload.eventType === "UPDATE") {
-              setParticipants(prev =>
-                prev.map(p => p.id === payload.new.id ? payload.new : p)
-              );
-            }
-
-            if (payload.eventType === "DELETE") {
-              setParticipants(prev => prev.filter(p => p.id !== payload.old.id));
-
-              // Hanya jika yang di-delete adalah DIRINYA SENDIRI → baru dianggap kicked
-              const kickedId = payload.old.id;
-              const myId = localStorage.getItem("participantId");
-
-              if (kickedId === myId) {
-                console.warn("You have been kicked from the session");
-                localStorage.removeItem("participantId");
-                localStorage.removeItem("game_pin");
-                router.push("/");
-              }
-            }
-          }
-        )
-        .subscribe();
-
-
-
       setLoading(false);
       hideLoading(); // Hide global loading (for seamless transition from /join)
     };
@@ -454,9 +412,66 @@ export default function LobbyPage() {
     return () => {
       stopCountdownSync();
       if (sessionChannel) mysupa.removeChannel(sessionChannel);
-      if (participantsChannel) mysupa.removeChannel(participantsChannel);
     };
   }, [roomCode, router, startCountdownSync, stopCountdownSync, hideLoading]);
+
+  // 🔥 Participants realtime - SEPARATE useEffect like host lobby
+  useEffect(() => {
+    if (!session?.id) return;
+
+    const channel = mysupa
+      .channel(`participants:${roomCode}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "participants",
+          filter: `session_id=eq.${session.id}`,
+        },
+        (payload) => {
+          console.log("Realtime participant change:", payload);
+
+          if (payload.eventType === "INSERT") {
+            setParticipants((prev) => {
+              // Prevent duplicates
+              if (prev.some((p) => p.id === payload.new.id)) return prev;
+              return [...prev, payload.new];
+            });
+            setTotalCount((prev) => prev + 1);
+          }
+          if (payload.eventType === "UPDATE") {
+            setParticipants((prev) =>
+              prev.map((p) => (p.id === payload.new.id ? payload.new : p))
+            );
+          }
+          if (payload.eventType === "DELETE") {
+            setParticipants((prev) => prev.filter((p) => p.id !== payload.old.id));
+            setTotalCount((prev) => Math.max(0, prev - 1));
+
+            // Jika yang di-delete adalah DIRINYA SENDIRI → kicked
+            const kickedId = payload.old.id;
+            const myId = localStorage.getItem("participantId");
+
+            if (kickedId === myId) {
+              console.warn("You have been kicked from the session");
+              showLoading(); // Show global loading during redirect
+              localStorage.removeItem("participantId");
+              localStorage.removeItem("game_pin");
+              router.push("/");
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log("Participants channel status:", status);
+      });
+
+    // Cleanup
+    return () => {
+      mysupa.removeChannel(channel);
+    };
+  }, [session?.id, roomCode, router, showLoading]);
 
   // 🚀 BROADCAST LISTENER (Fast path for countdown - separate useEffect)
   useEffect(() => {

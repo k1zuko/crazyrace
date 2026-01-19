@@ -8,16 +8,16 @@ import { Progress } from "@/components/ui/progress"
 import { Users, Clock, Crown, Award, SkipForward, Volume2, VolumeX, Check } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { mysupa, supabase } from "@/lib/supabase" // ← Ganti ke mysupa kamu
+import { mysupa } from "@/lib/supabase"
 import { formatTime, breakOnCaps } from "@/utils/game"
 import { syncServerTime, getSyncedServerTime } from "@/utils/serverTime"
 import LoadingRetro from "@/components/loadingRetro"
 import { useGlobalLoading } from "@/contexts/globalLoadingContext"
 import Image from "next/image"
 import { Dialog, DialogContent, DialogOverlay, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
-import { generateXID } from "@/lib/id-generator"
 import { useHostGuard } from "@/lib/host-guard"
 import { t } from "i18next"
+import { getHostGameDataAction, loadMoreParticipantsAction, endGameAction } from "@/app/actions/game-host"
 
 const backgroundImage = "/assets/background/host/9.webp"
 
@@ -59,115 +59,15 @@ export default function HostMonitorPage() {
 
   useEffect(() => { syncServerTime(); }, []);
 
-  const syncResultsToMainSupabase = async (sessionId: string) => {
-    try {
-      const { data: sess } = await mysupa
-        .from("sessions")
-        .select("id, host_id, quiz_id, question_limit, total_time_minutes, current_questions, started_at, ended_at")
-        .eq("id", sessionId)
-        .single();
-
-      if (!sess) throw new Error("Session tidak ditemukan");
-
-      const totalQuestions = sess.question_limit || (sess.current_questions || []).length;
-
-      const { data: participants } = await mysupa
-        .from("participants")
-        .select("id, user_id, nickname, car, score, correct, answers, duration, completion, current_question")
-        .eq("session_id", sessionId);
-
-      if (!participants || participants.length === 0) return;
-
-      // FORMAT PARTICIPANTS
-      const formattedParticipants = participants.map(p => {
-        const correctCount = p.correct || 0;
-        const accuracy = totalQuestions > 0
-          ? Number(((correctCount / totalQuestions) * 100).toFixed(2))
-          : 0;
-
-        return {
-          id: p.id,
-          user_id: p.user_id || null,
-          nickname: p.nickname,
-          car: p.car || "blue",
-          score: p.score || 0,
-          correct: correctCount,
-          completion: p.completion || false,
-          duration: p.duration || 0,
-          total_question: totalQuestions,
-          current_question: p.current_question || 0,
-          accuracy: accuracy.toFixed(2),
-        };
-      });
-
-      // FORMAT RESPONSES
-      const formattedResponses = participants
-        .filter(p => (p.answers || []).length > 0)
-        .map(p => ({
-          id: generateXID(),
-          participant: p.id,
-          answers: p.answers || [],
-        }));
-
-      // INSERT KE SUPABASE UTAMA → WAJIB ADA host_id!
-      const { error } = await supabase
-        .from("game_sessions")
-        .upsert({
-          game_pin: roomCode,
-          quiz_id: sess.quiz_id,
-          host_id: sess.host_id,
-          status: "finished",
-          application: "crazyrace",
-          total_time_minutes: sess.total_time_minutes || 5,
-          question_limit: totalQuestions.toString(),
-          started_at: sess.started_at,
-          ended_at: sess.ended_at,
-          participants: formattedParticipants,
-          responses: formattedResponses,
-          current_questions: sess.current_questions,
-        }, { onConflict: "game_pin" });
-
-      if (error) throw error;
-
-      console.log("Hasil berhasil disinkronkan ke supabase utama!");
-    } catch (err: any) {
-      console.error("Gagal sync:", err);
-    }
-  };
-
-  // ✅ FIX: Wrap handleEndGame dengan useCallback terlebih dahulu
+  // ✅ End game via server action
   const handleEndGame = useCallback(async () => {
     setEndGameConfirmOpen(false);
-    setLoading(true)
+    setLoading(true);
 
     try {
-      // 1. Akhiri session
-      const { data: sess, error: sessError } = await mysupa
-        .from("sessions")
-        .update({
-          status: "finished",
-          ended_at: new Date(getSyncedServerTime()).toISOString(),
-        })
-        .eq("game_pin", roomCode)
-        .select("id") // ambil id session
-        .single();
+      const result = await endGameAction(roomCode);
 
-      if (sessError || !sess) throw sessError || new Error("Session tidak ditemukan");
-
-      // 2. PAKSA SEMUA PLAYER SELESAI → DURASI OTOMATIS KEISI VIA TRIGGER!
-      const { error: playerError } = await mysupa
-        .from("participants")
-        .update({
-          completion: true,
-          racing: false,
-          finished_at: new Date(getSyncedServerTime()).toISOString(), // TRIGGER OTOMATIS ISI duration!
-        })
-        .eq("session_id", sess.id)
-        .eq("completion", false)
-
-      if (playerError) throw playerError;
-
-      await syncResultsToMainSupabase(sess.id);
+      if (result.error) throw new Error(result.error);
 
       console.log("Game diakhiri! Semua player masuk leaderboard.");
       router.push(`/host/${roomCode}/leaderboard`);
@@ -175,8 +75,9 @@ export default function HostMonitorPage() {
     } catch (err: any) {
       console.error("Gagal end game:", err);
       alert("Gagal mengakhiri game. Coba lagi.");
+      setLoading(false);
     }
-  }, [roomCode, router]); // ✅ FIX: Added proper dependencies
+  }, [roomCode, router]);
 
   // Timer akurat
   const updateTimer = useCallback(() => {
@@ -197,65 +98,35 @@ export default function HostMonitorPage() {
     return () => clearInterval(interval);
   }, [updateTimer]);
 
-  // Main effect: fetch + realtime dari mysupa
+  // Main effect: fetch initial data via server action + realtime
   useEffect(() => {
     if (!roomCode) return;
 
     let sessionChan: any = null;
 
     const init = async () => {
-      // 1. Fetch session
-      const { data: sess, error } = await mysupa
-        .from("sessions")
-        .select("id, status, started_at, current_questions, question_limit, total_time_minutes")
-        .eq("game_pin", roomCode)
-        .single();
+      // Fetch via server action
+      const result = await getHostGameDataAction(roomCode);
 
-      if (error || !sess) {
+      if (result.error || !result.data) {
         router.push("/host");
         return;
       }
 
+      const { session: sess, totalQuestions: qCount, gameDuration: dur, participants: parts, totalCount: count, cursor: cur, hasMore: more } = result.data;
+
       setSession(sess);
-      const qCount = sess.question_limit || (sess.current_questions || []).length || 5;
       setTotalQuestions(qCount);
-      setGameDuration((sess.total_time_minutes || 5) * 60);
-
-      // 2. Fetch participants (cursor-based)
-      const { data: parts, count } = await mysupa
-        .from("participants")
-        .select("id, nickname, car, score, correct, current_question, completion, answers, joined_at", { count: "exact" })
-        .eq("session_id", sess.id)
-        .order("joined_at", { ascending: true })
-        .limit(pageSize);
-
-      const mapped = (parts || []).map((p: any) => ({
-        id: p.id,
-        nickname: p.nickname,
-        car: p.car || "blue",
-        score: p.score || 0,
-        correct: p.correct || 0,
-        currentQuestion: p.current_question || 0,
-        answersCount: (p.answers || []).length,
-        isComplete: p.completion === true,
-        joinedAt: p.joined_at,
-      }));
-
-      setParticipants(mapped);
-      setTotalCount(count || 0);
-
-      // Set cursor and hasMore
-      if (parts && parts.length > 0) {
-        setCursor(parts[parts.length - 1].joined_at);
-        setHasMore(parts.length >= pageSize);
-      } else {
-        setHasMore(false);
-      }
+      setGameDuration(dur);
+      setParticipants(parts);
+      setTotalCount(count);
+      setCursor(cur);
+      setHasMore(more);
 
       setLoading(false);
       hideLoading();
 
-      // 3. Realtime session
+      // Realtime session (must stay client-side)
       sessionChan = mysupa
         .channel(`host-sess-${roomCode}`)
         .on("postgres_changes", {
@@ -278,7 +149,7 @@ export default function HostMonitorPage() {
     return () => {
       if (sessionChan) mysupa.removeChannel(sessionChan);
     };
-  }, [roomCode, router]);
+  }, [roomCode, router, hideLoading]);
 
   useEffect(() => {
     if (!session?.id) return;
@@ -363,39 +234,28 @@ export default function HostMonitorPage() {
     return "text-[#00ffff] glow-cyan";
   };
 
-  // Load more participants using cursor
+  // Load more participants via server action
   const loadMore = useCallback(async () => {
     if (!session?.id || !cursor || isLoadingMore || !hasMore) return;
 
     setIsLoadingMore(true);
-    const { data: more } = await mysupa
-      .from("participants")
-      .select("id, nickname, car, score, correct, current_question, completion, answers, joined_at")
-      .eq("session_id", session.id)
-      .gt("joined_at", cursor)
-      .order("joined_at", { ascending: true })
-      .limit(pageSize);
+    const result = await loadMoreParticipantsAction(roomCode, session.id, cursor, pageSize);
 
-    if (more && more.length > 0) {
-      const mapped = more.map((p: any) => ({
-        id: p.id,
-        nickname: p.nickname,
-        car: p.car || "blue",
-        score: p.score || 0,
-        correct: p.correct || 0,
-        currentQuestion: p.current_question || 0,
-        answersCount: (p.answers || []).length,
-        isComplete: p.completion === true,
-        joinedAt: p.joined_at,
-      }));
-      setParticipants(prev => [...prev, ...mapped]);
-      setCursor(more[more.length - 1].joined_at);
-      setHasMore(more.length >= pageSize);
+    if (result.error) {
+      console.error("Load more error:", result.error);
+      setIsLoadingMore(false);
+      return;
+    }
+
+    if (result.participants && result.participants.length > 0) {
+      setParticipants(prev => [...prev, ...result.participants]);
+      setCursor(result.nextCursor);
+      setHasMore(result.hasMore || false);
     } else {
       setHasMore(false);
     }
     setIsLoadingMore(false);
-  }, [session?.id, cursor, isLoadingMore, hasMore, pageSize]);
+  }, [session?.id, cursor, isLoadingMore, hasMore, pageSize, roomCode]);
 
   // Infinite scroll: observe loader element
   useEffect(() => {

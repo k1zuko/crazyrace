@@ -5,30 +5,21 @@ import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, ArrowLeft, HelpCircle, Heart, User } from "lucide-react"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-// import { mysupa, supabase } from "@/lib/supabase" // Removed direct access
 import { useRouter } from "next/navigation"
 import LoadingRetro from "@/components/loadingRetro"
 import { useGlobalLoading } from "@/contexts/globalLoadingContext"
 import Image from "next/image"
 import { useAuth } from "@/contexts/authContext"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { useTranslation } from "react-i18next"
 import { t } from "i18next"
-import { generateXID } from "@/lib/id-generator"
 import {
-  getHostProfile,
-  getQuizCategories,
+  getHostInitialData,
   getQuizzesPaginated,
   toggleFavoriteQuiz,
   createGameSession
 } from "@/app/actions/select-quiz"
-
-// List of background GIFs in filename order
-const backgroundGifs = [
-  "/assets/background/2_v2.webp",
-]
 
 // UPDATE: generateRoomCode - rename ke generateGamePin (sama logic)
 export function generateGamePin(length = 6) {
@@ -41,7 +32,6 @@ export default function QuestionListPage() {
   const router = useRouter()
   const { user } = useAuth();
   const { hideLoading, showLoading } = useGlobalLoading();
-  const [isMuted, setIsMuted] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchInput, setSearchInput] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All")
@@ -50,11 +40,8 @@ export default function QuestionListPage() {
   const [totalCount, setTotalCount] = useState(0) // NEW: Total count from server
   const [loading, setLoading] = useState(true) // Initial load only
   const [isFetching, setIsFetching] = useState(false) // Subtle loading for filter/page changes
-  const [currentBgIndex, setCurrentBgIndex] = useState(0)
-  const [isTransitioning, setIsTransitioning] = useState(false)
   const [creating, setCreating] = useState(false)
   const [creatingQuizId, setCreatingQuizId] = useState<string | null>(null)
-  const audioRef = useRef<HTMLAudioElement>(null)
   const [profile, setProfile] = useState<any>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [favoritesMode, setFavoritesMode] = useState(false);
@@ -64,42 +51,25 @@ export default function QuestionListPage() {
   const itemsPerPage = 9;
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
-  // Fetch profile via Server Action
+  // ✅ OPTIMIZED: Combined initial fetch - profile + categories in one request
   useEffect(() => {
-    const fetchProfile = async () => {
-      // We don't rely on client 'user' object for the query anymore, 
-      // but we still wait for auth context to be roughly ready or just fire it.
-      // Server action 'getHostProfile' checks auth cookie on server.
-
-      const result = await getHostProfile()
+    const fetchInitialData = async () => {
+      const result = await getHostInitialData()
 
       if (result.error) {
-        console.error('Error fetching profile:', result.error)
-        // If not authenticated, maybe redirect or just show empty?
+        console.error('Error fetching initial data:', result.error)
         setFavorites([])
         setProfile(null)
+        setCategories(["All"])
       } else {
         setProfile(result.profile)
         setFavorites(result.favorites || [])
+        setCategories(result.categories || ["All"])
       }
     };
 
-    fetchProfile();
-  }, []); // Run once on mount, server action handles auth check
-
-  // Fetch categories via Server Action
-  useEffect(() => {
-    const fetchCategories = async () => {
-      if (!profile?.id) return;
-
-      const result = await getQuizCategories(profile.id)
-
-      if (result.categories) {
-        setCategories(result.categories)
-      }
-    };
-    fetchCategories();
-  }, [profile?.id]);
+    fetchInitialData();
+  }, []); // Single request on mount
 
   // Fetch quizzes via Server Action
   useEffect(() => {
@@ -135,7 +105,7 @@ export default function QuestionListPage() {
     };
 
     fetchQuizzes();
-  }, [profile?.id, currentPage, searchQuery, selectedCategory, favoritesMode, myQuizzesMode, favorites]);
+  }, [profile?.id, currentPage, searchQuery, selectedCategory, favoritesMode, myQuizzesMode]); // ✅ Removed favorites from deps
 
   // Reset page to 1 when filters change
   useEffect(() => {
@@ -221,25 +191,6 @@ export default function QuestionListPage() {
   }
 
 
-  // Background image cycling with smooth transition
-  useEffect(() => {
-    const bgInterval = setInterval(() => {
-      setIsTransitioning(true)
-
-      // Start fade out
-      setTimeout(() => {
-        setCurrentBgIndex((prev) => (prev + 1) % backgroundGifs.length)
-
-        // Complete fade in
-        setTimeout(() => {
-          setIsTransitioning(false)
-        }, 500)
-      }, 500)
-
-    }, 5000) // Total cycle: 5 seconds
-
-    return () => clearInterval(bgInterval)
-  }, [])
 
   // Handle quiz selection
   const handleQuizSelect = async (quizId: string) => {
@@ -290,23 +241,14 @@ export default function QuestionListPage() {
   return (
     <div className="h-screen bg-[#1a0a2a] relative overflow-hidden"> {/* Fixed height */}
 
-      {/* Background Image with Smooth Transition */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentBgIndex}
-          className="fixed inset-0 w-full h-full"
-          style={{
-            backgroundImage: `url(${backgroundGifs[currentBgIndex]})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat'
-          }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 1, ease: "easeInOut" }}
-        />
-      </AnimatePresence>
+      {/* Static Background Image */}
+      <Image
+        src="/assets/background/2_v2.webp"
+        alt="Background"
+        fill
+        className="object-cover fixed z-10"
+        priority
+      />
 
       {/* Loading handled by GlobalLoadingContext */}
 

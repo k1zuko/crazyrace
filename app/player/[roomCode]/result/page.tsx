@@ -6,12 +6,13 @@ import { Card } from "@/components/ui/card"
 import { Home } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { mysupa, supabase } from "@/lib/supabase"
+import { mysupa } from "@/lib/supabase"
 import LoadingRetro from "@/components/loadingRetro"
 import { useGlobalLoading } from "@/contexts/globalLoadingContext"
 import { breakOnCaps } from "@/utils/game"
 import Image from "next/image"
 import { t } from "i18next"
+import { getPlayerResultAction, calculatePlayerRankAction } from "@/app/actions/game-player"
 
 
 // Background GIFs
@@ -74,66 +75,19 @@ export default function PlayerResultsPage() {
         setLoading(true);
         setError(null);
 
-        // 1. Ambil session dari mysupa (cuma buat ambil total soal & waktu & status)
-        const { data: sess, error: sessErr } = await mysupa
-          .from("sessions")
-          .select("id, question_limit, total_time_minutes, current_questions, status")
-          .eq("game_pin", roomCode)
-          .single();
+        // Use server action to get all result data
+        const result = await getPlayerResultAction(roomCode, participantId);
 
-        if (sessErr || !sess) throw new Error("Session tidak ditemukan");
-
-        setSessionId(sess.id);
-        const isFinished = sess.status === 'finished';
-        setIsGameFinished(isFinished);
-
-        const totalQuestions = sess.question_limit || (sess.current_questions || []).length;
-        const gameDuration = (sess.total_time_minutes || 5) * 60;
-
-        // 2. Ambil data player dari mysupa.participants
-        const { data: participant, error: partErr } = await mysupa
-          .from("participants")
-          .select("nickname, car, score, correct, completion, duration")
-          .eq("id", participantId)
-          .single();
-
-        if (partErr || !participant) throw new Error("Data kamu tidak ditemukan");
-
-        // Hitung rank jika game sudah selesai
-        let rank: number | null = null;
-        if (isFinished) {
-          rank = await calculateRank(sess.id, participantId, participant.score || 0, participant.duration || 9999);
-          setPlayerRank(rank);
+        if (result.error || !result.data) {
+          throw new Error(result.error || "Failed to load result");
         }
 
+        const { sessionId: sessId, isFinished, stats, rank } = result.data;
 
-
-        // 3. Hitung statistik
-        const correctCount = participant.correct || 0;
-        const finalScore = participant.score || 0;
-
-        // Hitung akurasi
-        const accuracy = totalQuestions > 0
-          ? ((correctCount / totalQuestions) * 100).toFixed(2)
-          : "0.00";
-
-        // Format waktu (duration di-save di minigame atau dihitung dari timer)
-        const totalSeconds = Math.min(participant.duration || 0, gameDuration);
-        const mins = Math.floor(totalSeconds / 60);
-        const secs = totalSeconds % 60;
-        const totalTime = `${mins}:${secs.toString().padStart(2, "0")}`;
-
-        setCurrentPlayerStats({
-          nickname: participant.nickname,
-          car: participant.car || "blue",
-          finalScore,
-          correctAnswers: correctCount,
-          totalQuestions,
-          accuracy,
-          totalTime,
-          participantId,
-          duration: participant.duration || 0,
-        });
+        setSessionId(sessId);
+        setIsGameFinished(isFinished);
+        setCurrentPlayerStats(stats);
+        if (rank !== null) setPlayerRank(rank);
 
         setLoading(false);
         hideLoading();
@@ -149,38 +103,15 @@ export default function PlayerResultsPage() {
     return () => {
       hasBootstrapped.current = false;
     };
-  }, [roomCode, participantId]);
+  }, [roomCode, participantId, hideLoading]);
 
-  // Function to calculate rank
-  const calculateRank = async (sessId: string, myParticipantId: string, myScore: number, myDuration: number): Promise<number> => {
-    try {
-      // Ambil semua participant yang sudah completion = true
-      const { data: participants, error } = await mysupa
-        .from("participants")
-        .select("id, score, duration")
-        .eq("session_id", sessId)
-        .eq("completion", true);
-
-      if (error || !participants) return 1;
-
-      // Sort: skor tinggi → waktu cepat
-      const sorted = participants.sort((a, b) => {
-        const scoreA = a.score || 0;
-        const scoreB = b.score || 0;
-        if (scoreB !== scoreA) return scoreB - scoreA;
-        return (a.duration || 9999) - (b.duration || 9999);
-      });
-
-      // Cari rank player
-      const rankIndex = sorted.findIndex(p => p.id === myParticipantId);
-      return rankIndex !== -1 ? rankIndex + 1 : sorted.length + 1;
-    } catch (err) {
-      console.error("Error calculating rank:", err);
-      return 1;
-    }
+  // Function to calculate rank via server action
+  const calculateRank = async (sessId: string, myParticipantId: string): Promise<number> => {
+    const result = await calculatePlayerRankAction(sessId, myParticipantId);
+    return result.rank || 1;
   };
 
-  // Subscribe to session status changes
+  // Subscribe to session status changes (realtime must stay client-side)
   useEffect(() => {
     if (!sessionId || isGameFinished) return;
 
@@ -195,13 +126,11 @@ export default function PlayerResultsPage() {
         const newSession = payload.new as any;
         if (newSession.status === 'finished') {
           setIsGameFinished(true);
-          // Calculate rank
+          // Calculate rank via server action
           if (currentPlayerStats) {
             const rank = await calculateRank(
               sessionId,
-              currentPlayerStats.participantId,
-              currentPlayerStats.finalScore,
-              currentPlayerStats.duration
+              currentPlayerStats.participantId
             );
             setPlayerRank(rank);
           }

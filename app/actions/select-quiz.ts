@@ -44,6 +44,59 @@ export async function getHostProfile() {
     }
 }
 
+/**
+ * Combined initial data fetch - profile + categories in one request
+ */
+export async function getHostInitialData() {
+    const supabase = await createActionClient()
+
+    try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return { error: 'Not authenticated' }
+
+        // 1. Get profile
+        const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('id, favorite_quiz')
+            .eq('auth_user_id', user.id)
+            .single()
+
+        if (profileError) throw profileError
+
+        let favorites: string[] = []
+        if (profileData.favorite_quiz) {
+            try {
+                const parsed = typeof profileData.favorite_quiz === 'string'
+                    ? JSON.parse(profileData.favorite_quiz)
+                    : profileData.favorite_quiz
+                favorites = parsed.favorites || []
+            } catch (e) {
+                console.error('Error parsing favorites:', e)
+            }
+        }
+
+        // 2. Get categories (parallel with profile data)
+        const { data: catData, error: catError } = await supabase
+            .from('quizzes')
+            .select('category')
+            .or(`is_public.eq.true,creator_id.eq.${profileData.id}`)
+
+        const categories = catError
+            ? ["All"]
+            : ["All", ...new Set(catData.map(q => q.category).filter(Boolean))] as string[]
+
+        return {
+            profile: profileData,
+            favorites,
+            userId: user.id,
+            categories
+        }
+    } catch (error: any) {
+        console.error('getHostInitialData error:', error)
+        return { error: error.message }
+    }
+}
+
 export async function getQuizCategories(profileId: string) {
     const supabase = await createActionClient()
     try {

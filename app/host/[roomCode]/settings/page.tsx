@@ -15,8 +15,6 @@ import { t } from "i18next"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogTitle } from "@/components/ui/dialog"
 import { updateGameSettings, deleteGameSession, getSessionSettings } from "@/app/actions/game-settings"
 
-const backgroundGif = "/assets/background/host/7.webp"
-
 export function shuffleArray(array: any[]) {
     const shuffled = [...array]
     for (let i = shuffled.length - 1; i > 0; i--) {
@@ -52,32 +50,32 @@ export default function HostSettingsPage({ params }: Props) {
     // Fetch Data Client-Side
     useEffect(() => {
         const fetchData = async () => {
-             const result = await getSessionSettings(roomCode)
-             
-             if (result.error || !result.session) {
-                 console.error("Error fetching settings:", result.error)
-                 router.push('/host')
-                 return
-             }
+            const result = await getSessionSettings(roomCode)
 
-             // Initialize state
-             setQuiz(result.quiz)
-             setQuizDetail(result.quizDetail)
-             
-             if (result.session.total_time_minutes) {
+            if (result.error || !result.session) {
+                console.error("Error fetching settings:", result.error)
+                router.push('/host')
+                return
+            }
+
+            // Initialize state
+            setQuiz(result.quiz)
+            setQuizDetail(result.quizDetail)
+
+            if (result.session.total_time_minutes) {
                 setDuration((result.session.total_time_minutes * 60).toString())
-             }
-             if (result.session.question_limit) {
+            }
+            if (result.session.question_limit) {
                 setQuestionCount(result.session.question_limit.toString())
-             }
-             if (result.session.difficulty) {
+            }
+            if (result.session.difficulty) {
                 setSelectedDifficulty(result.session.difficulty)
-             }
-             
-             setLoadingData(false)
-             hideLoading() // Hide global loader once data is ready
+            }
+
+            setLoadingData(false)
+            hideLoading() // Hide global loader once data is ready
         }
-        
+
         fetchData()
     }, [roomCode, router, hideLoading])
 
@@ -142,9 +140,9 @@ export default function HostSettingsPage({ params }: Props) {
         setIsDeleting(true);
         try {
             const result = await deleteGameSession(roomCode);
-            
+
             if (result.error) {
-                 console.error("Error deleting session:", result.error);
+                console.error("Error deleting session:", result.error);
             }
 
             localStorage.removeItem("hostGamePin");
@@ -163,17 +161,13 @@ export default function HostSettingsPage({ params }: Props) {
 
     return (
         <div className="h-screen bg-[#1a0a2a] relative overflow-hidden">
-            <motion.div
-                className="fixed inset-0 w-full h-full"
-                style={{
-                    backgroundImage: `url(${backgroundGif})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    backgroundRepeat: 'no-repeat'
-                }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0.5 }}
-                transition={{ duration: 1, ease: "easeInOut" }}
+            {/* Static Background Image */}
+            <Image
+                src="/assets/background/host/7.webp"
+                alt="Background"
+                fill
+                className="object-cover fixed opacity-50"
+                priority
             />
 
             <div className="absolute inset-0 overflow-y-auto z-10">

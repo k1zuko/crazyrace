@@ -18,20 +18,18 @@ import {
   BookOpen,
   ArrowLeft,
   ArrowRight,
-  Globe,
   Dices,
   ScanLine,
 } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { mysupa, supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import Image from "next/image";
 import { usePreloaderScreen } from "@/components/preloader-screen";
 import LoadingRetroScreen from "@/components/loading-screnn";
 import { useAuth } from "@/contexts/authContext";
-import { generateXID } from "@/lib/id-generator";
+import { useGlobalLoading } from "@/contexts/globalLoadingContext";
 import { useTranslation } from "react-i18next";
 import {
   Dialog,
@@ -42,6 +40,8 @@ import {
 import dynamic from "next/dynamic";
 import { usePWAInstall } from "@/contexts/pwaContext";
 import PWAInstallBanner from "@/components/ui/pwa-install-banner";
+import { joinGameAction } from "@/app/actions/join-game";
+import indonesianNames from "@/data/indonesian-names.json";
 
 const Scanner = dynamic(
   () =>
@@ -51,7 +51,27 @@ const Scanner = dynamic(
   { ssr: false }
 );
 
-const APP_NAME = "crazyrace";
+// Languages for language selector
+const LANGUAGES = [
+  { code: "en", name: "English", flag: "🇺🇸" },
+  { code: "id", name: "Bahasa Indonesia", flag: "🇮🇩" },
+];
+
+// Generate random Indonesian nickname (1-3 words)
+const generateRandomNickname = (): string => {
+  const { firstNames, middleNames, lastNames } = indonesianNames;
+  const wordCount = Math.floor(Math.random() * 3) + 1; // 1-3 words
+
+  const getRandom = (arr: string[]) => arr[Math.floor(Math.random() * arr.length)];
+
+  if (wordCount === 1) {
+    return getRandom(firstNames);
+  } else if (wordCount === 2) {
+    return `${getRandom(firstNames)} ${getRandom(lastNames)}`;
+  } else {
+    return `${getRandom(firstNames)} ${getRandom(middleNames)} ${getRandom(lastNames)}`;
+  }
+};
 
 function LogoutDialog({
   open,
@@ -112,6 +132,12 @@ export default function HomePage() {
   const { t, i18n } = useTranslation();
   const { user, profile, loading: authLoading } = useAuth();
   const { installPrompt, handleInstall: handlePWAInstall } = usePWAInstall();
+  const { hideLoading } = useGlobalLoading();
+
+  // Hide global loading on mount (e.g., after being kicked from lobby)
+  useEffect(() => {
+    hideLoading();
+  }, [hideLoading]);
 
   const [isBannerVisible, setBannerVisible] = useState(false);
   const [joining, setJoining] = useState(false);
@@ -139,34 +165,7 @@ export default function HomePage() {
   >("");
   const [showLogoutDialog, setShowLogoutDialog] = useState(false);
 
-  const adjectives = [
-    "Crazy",
-    "Fast",
-    "Speedy",
-    "Turbo",
-    "Neon",
-    "Pixel",
-    "Racing",
-    "Wild",
-    "Epic",
-    "Flash",
-  ];
-  const nouns = [
-    "Racer",
-    "Driver",
-    "Speedster",
-    "Bolt",
-    "Dash",
-    "Zoom",
-    "Nitro",
-    "Gear",
-    "Track",
-    "Lap",
-  ];
-  const languages = [
-    { code: "en", name: "English", flag: "🇺🇸" },
-    { code: "id", name: "Bahasa Indonesia", flag: "🇮🇩" },
-  ];
+  const generateNickname = () => generateRandomNickname();
 
   const isInstalled =
     typeof window !== "undefined" &&
@@ -238,11 +237,7 @@ export default function HomePage() {
     setError(message);
   };
 
-  const generateNickname = () => {
-    const randomAdj = adjectives[Math.floor(Math.random() * adjectives.length)];
-    const randomNoun = nouns[Math.floor(Math.random() * nouns.length)];
-    return `${randomAdj}${randomNoun}`;
-  };
+
 
   const getAlertMessage = (reason: string) => t(`alert.${reason}.message`);
   const closeAlert = () => {
@@ -329,16 +324,16 @@ export default function HomePage() {
     }
   }, [authLoading, user, profile, router]);
 
-  // REFACTORED: Uses the 'join_game_session' RPC for a safe, atomic join process.
+  // ✅ REFACTORED: Uses server action for secure join
   const handleJoin = async () => {
-    // ✅ Validasi input
+    // Validasi input
     if (roomCode.length !== 6 || !nickname.trim()) {
       setAlertReason(roomCode.length !== 6 ? "roomCode" : "nickname");
       setShowAlert(true);
       return;
     }
 
-    // ✅ Validasi profile sudah ter-fetch dan valid
+    // Validasi profile sudah ter-fetch dan valid
     if (!profile?.id || profile.id.startsWith('fallback-')) {
       console.warn('⚠️ Profile not fully loaded, retrying...');
       setAlertReason("general");
@@ -346,7 +341,7 @@ export default function HomePage() {
       return;
     }
 
-    // ✅ Validasi fullname/username sudah ter-fetch
+    // Validasi fullname/username sudah ter-fetch
     if (!profile?.fullname && !profile?.username) {
       console.warn('⚠️ Profile name not loaded properly');
       setAlertReason("general");
@@ -356,52 +351,27 @@ export default function HomePage() {
 
     setJoining(true);
     try {
-      const { data, error } = await mysupa.rpc("join_game", {
-        p_room_code: roomCode,
-        p_user_id: profile.id,
-        p_nickname: nickname.trim(),
-      });
+      // ✅ Call server action instead of direct mysupa.rpc
+      const result = await joinGameAction(roomCode, profile.id, nickname.trim());
 
-      if (!data || error) {
-        console.error('❌ Join game RPC error:', error);
-        setAlertReason("general");
+      if (result.error) {
+        // Map error codes to alert reasons
+        const errorMap: Record<string, typeof alertReason> = {
+          duplicate_nickname: "duplicate",
+          room_not_found: "roomNotFound",
+          session_locked: "sessionLocked",
+          room_full: "roomFull",
+          general: "general",
+        };
+        setAlertReason(errorMap[result.error] || "general");
         setShowAlert(true);
         setJoining(false);
         return;
       }
 
-      if (data.error === "duplicate_nickname") {
-        setAlertReason("duplicate");
-        setShowAlert(true);
-        setJoining(false);
-        return;
-      }
-
-      if (data.error === "room_not_found") {
-        setAlertReason("roomNotFound");
-        setShowAlert(true);
-        setJoining(false);
-        return;
-      }
-
-      if (data.error === "session_locked") {
-        // status = active / finished, user belum join sebelumnya
-        setAlertReason("sessionLocked");
-        setShowAlert(true);
-        setJoining(false);
-        return;
-      }
-
-      if (data.error === "room_full") {
-        setAlertReason("roomFull");
-        setShowAlert(true);
-        setJoining(false);
-        return;
-      }
-
-      // ✅ Aman (reconnect / join baru)
-      localStorage.setItem("nickname", data.nickname);
-      localStorage.setItem("participantId", data.participant_id);
+      // ✅ Success
+      localStorage.setItem("nickname", result.nickname!);
+      localStorage.setItem("participantId", result.participantId!);
       localStorage.setItem("game_pin", roomCode);
 
       router.push(`/player/${roomCode}/lobby`);
@@ -632,7 +602,7 @@ export default function HomePage() {
                     exit={{ opacity: 0, height: 0 }}
                     className="overflow-hidden grid grid-cols-2 gap-2"
                   >
-                    {languages.map((lang) => (
+                    {LANGUAGES.map((lang) => (
                       <motion.button
                         key={lang.code}
                         onClick={() =>

@@ -5,16 +5,14 @@ import { Card } from "@/components/ui/card"
 import { useParams, useRouter } from "next/navigation"
 import { useCallback, useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { mysupa, supabase } from "@/lib/supabase"
+import { mysupa } from "@/lib/supabase"
 import { breakOnCaps } from "@/utils/game"
 import Image from "next/image"
 import { HomeIcon, RotateCwIcon } from "lucide-react"
-import { generateGamePin } from "../../page"
-import { shuffleArray } from "../settings/page"
-import { useAuth } from "@/contexts/authContext"
 import { t } from "i18next"
 import { useHostGuard } from "@/lib/host-guard"
 import { useGlobalLoading } from "@/contexts/globalLoadingContext"
+import { getLeaderboardDataAction, restartGameAction } from "@/app/actions/game-host"
 
 const APP_NAME = "crazyrace"; // Safety check for multi-tenant DB
 
@@ -72,71 +70,22 @@ export default function HostLeaderboardPage() {
     return { finalScore, correctAnswers, totalQuestions, accuracy, totalTime, duration: totalSeconds };
   };
 
-  // Fetch data
+  // Fetch data via server action
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // 1. Ambil session dari mysupa
-      const { data: sess, error: sessErr } = await mysupa
-        .from("sessions")
-        .select("id, question_limit, current_questions")
-        .eq("game_pin", roomCode)
-        .single();
+      const result = await getLeaderboardDataAction(roomCode);
 
-      if (sessErr || !sess) throw new Error("Session tidak ditemukan");
-
-      setSession(sess);
-
-      const totalQuestions = sess.question_limit || (sess.current_questions || []).length;
-
-      // 2. Ambil semua participant yang completion = true
-      const { data: participants, error: partErr } = await mysupa
-        .from("participants")
-        .select("id, nickname, car, score, correct, answers, duration, completion")
-        .eq("session_id", sess.id)
-        .eq("completion", true);
-
-      if (partErr || !participants || participants.length === 0) {
-        setError("Belum ada yang selesai");
+      if (result.error || !result.data) {
+        setError(result.error || "Failed to load leaderboard");
         setLoading(false);
         return;
       }
 
-      // 3. Hitung statistik
-      const stats = participants.map(p => {
-        const correctCount = p.correct || 0;
-        const accuracy = totalQuestions > 0
-          ? Number(((correctCount / totalQuestions) * 100).toFixed(2))
-          : 0;
-
-        const totalSeconds = p.duration || 9999; // kalau duration 0 → urutan belakang
-        const mins = Math.floor(totalSeconds / 60);
-        const secs = totalSeconds % 60;
-        const totalTime = `${mins}:${secs.toString().padStart(2, "0")}`;
-
-        return {
-          participantId: p.id,
-          nickname: p.nickname,
-          car: p.car || "blue",
-          finalScore: p.score || 0,
-          correctAnswers: correctCount,
-          totalQuestions,
-          accuracy,
-          totalTime,
-          duration: totalSeconds,
-        };
-      });
-
-      // 4. Urutkan: skor tinggi → waktu cepat
-      const sorted = stats.sort((a, b) => {
-        if (b.finalScore !== a.finalScore) return b.finalScore - a.finalScore;
-        return a.duration - b.duration; // waktu lebih cepat = lebih baik
-      });
-
-      const ranked = sorted.map((s, i) => ({ ...s, rank: i + 1 }));
-      setPlayerStats(ranked);
+      setSession(result.data.session);
+      setPlayerStats(result.data.playerStats);
 
     } catch (err: any) {
       console.error("Error load leaderboard:", err);
@@ -145,7 +94,7 @@ export default function HostLeaderboardPage() {
       setLoading(false);
       hideLoading();
     }
-  }, [roomCode]);
+  }, [roomCode, hideLoading]);
 
   const handleRealtimeUpdate = (payload: any) => {
     const p = payload.new || payload.old;
@@ -229,68 +178,20 @@ export default function HostLeaderboardPage() {
     return () => clearInterval(bgInterval);
   }, []);
 
+  // Restart game via server action
   const restartGame = async () => {
-    if (isRestarting) return; // Prevent double click
+    if (isRestarting) return;
     setIsRestarting(true);
 
     try {
-      // 1. Ambil session lama dari mysupa
-      const { data: oldSess } = await mysupa
-        .from("sessions")
-        .select("quiz_id, host_id, question_limit, total_time_minutes, difficulty, current_questions")
-        .eq("game_pin", roomCode)
-        .single();
+      const result = await restartGameAction(roomCode);
 
-      if (!oldSess) throw new Error("Session lama tidak ditemukan");
-
-      // 2. Shuffle questions
-      const questions = oldSess.current_questions || [];
-      const shuffled = shuffleArray(questions);
-      const sliced = shuffled.slice(0, oldSess.question_limit || 5);
-
-      // 3. Generate PIN baru
-      const newPin = generateGamePin(6);
-
-      // 4. BUAT SESSION BARU DI mysupa (real-time gameplay)
-      const { error: mysupaError } = await mysupa
-        .from("sessions")
-        .insert({
-          game_pin: newPin,
-          quiz_id: oldSess.quiz_id,
-          host_id: oldSess.host_id, // PENTING: tanpa ini host guard akan redirect!
-          status: "waiting",
-          question_limit: oldSess.question_limit,
-          total_time_minutes: oldSess.total_time_minutes,
-          difficulty: oldSess.difficulty,
-          current_questions: sliced,
-        });
-
-      if (mysupaError) throw mysupaError;
-
-      // 5. BUAT SESSION BARU DI supabase UTAMA (agar bisa join!)
-      const { error: mainError } = await supabase
-        .from("game_sessions")
-        .insert({
-          game_pin: newPin,
-          quiz_id: oldSess.quiz_id,
-          host_id: oldSess.host_id,
-          status: "waiting",
-          application: "crazyrace",
-          total_time_minutes: oldSess.total_time_minutes || 5,
-          question_limit: oldSess.question_limit?.toString() || "5",
-          difficulty: oldSess.difficulty,
-          current_questions: sliced,
-          participants: [],
-          responses: [],
-        });
-
-      if (mainError) {
-        console.error("Gagal buat di supabase utama:", mainError);
-        throw mainError
+      if (result.error || !result.newPin) {
+        throw new Error(result.error || "Failed to restart");
       }
 
-      console.log("Restart berhasil! PIN baru:", newPin);
-      router.push(`/host/${newPin}/lobby`);
+      console.log("Restart berhasil! PIN baru:", result.newPin);
+      router.push(`/host/${result.newPin}/lobby`);
 
     } catch (err: any) {
       console.error("Restart gagal:", err);

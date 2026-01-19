@@ -209,3 +209,123 @@ export async function finishGameAction(participantId: string, roomCode: string) 
         return { error: error.message }
     }
 }
+
+/**
+ * Get player result data (session + participant stats)
+ */
+export async function getPlayerResultAction(roomCode: string, participantId: string) {
+    const mysupa = getMySupaServer()
+    try {
+        if (!participantId) return { error: 'No participant ID' }
+
+        // 1. Get session
+        const { data: sess, error: sessErr } = await mysupa
+            .from("sessions")
+            .select("id, question_limit, total_time_minutes, current_questions, status")
+            .eq("game_pin", roomCode)
+            .single()
+
+        if (sessErr || !sess) return { error: 'Session tidak ditemukan' }
+
+        const totalQuestions = sess.question_limit || (sess.current_questions || []).length
+        const gameDuration = (sess.total_time_minutes || 5) * 60
+        const isFinished = sess.status === 'finished'
+
+        // 2. Get participant data
+        const { data: participant, error: partErr } = await mysupa
+            .from("participants")
+            .select("nickname, car, score, correct, completion, duration")
+            .eq("id", participantId)
+            .single()
+
+        if (partErr || !participant) return { error: 'Data kamu tidak ditemukan' }
+
+        // 3. Calculate stats
+        const correctCount = participant.correct || 0
+        const finalScore = participant.score || 0
+        const accuracy = totalQuestions > 0
+            ? ((correctCount / totalQuestions) * 100).toFixed(2)
+            : "0.00"
+
+        const totalSeconds = Math.min(participant.duration || 0, gameDuration)
+        const mins = Math.floor(totalSeconds / 60)
+        const secs = totalSeconds % 60
+        const totalTime = `${mins}:${secs.toString().padStart(2, "0")}`
+
+        // 4. Calculate rank if game finished
+        let rank: number | null = null
+        if (isFinished) {
+            const { data: participants } = await mysupa
+                .from("participants")
+                .select("id, score, duration")
+                .eq("session_id", sess.id)
+                .eq("completion", true)
+
+            if (participants) {
+                const sorted = participants.sort((a, b) => {
+                    const scoreA = a.score || 0
+                    const scoreB = b.score || 0
+                    if (scoreB !== scoreA) return scoreB - scoreA
+                    return (a.duration || 9999) - (b.duration || 9999)
+                })
+                const rankIndex = sorted.findIndex(p => p.id === participantId)
+                rank = rankIndex !== -1 ? rankIndex + 1 : sorted.length + 1
+            }
+        }
+
+        return {
+            data: {
+                sessionId: sess.id,
+                isFinished,
+                stats: {
+                    nickname: participant.nickname,
+                    car: participant.car || "blue",
+                    finalScore,
+                    correctAnswers: correctCount,
+                    totalQuestions,
+                    accuracy,
+                    totalTime,
+                    participantId,
+                    duration: participant.duration || 0,
+                },
+                rank,
+            }
+        }
+
+    } catch (error: any) {
+        console.error('getPlayerResultAction error:', error)
+        return { error: error.message }
+    }
+}
+
+/**
+ * Calculate player rank (when game finishes via realtime)
+ */
+export async function calculatePlayerRankAction(sessionId: string, participantId: string) {
+    const mysupa = getMySupaServer()
+    try {
+        if (!sessionId || !participantId) return { error: 'Missing params' }
+
+        const { data: participants, error } = await mysupa
+            .from("participants")
+            .select("id, score, duration")
+            .eq("session_id", sessionId)
+            .eq("completion", true)
+
+        if (error || !participants) return { rank: 1 }
+
+        const sorted = participants.sort((a, b) => {
+            const scoreA = a.score || 0
+            const scoreB = b.score || 0
+            if (scoreB !== scoreA) return scoreB - scoreA
+            return (a.duration || 9999) - (b.duration || 9999)
+        })
+
+        const rankIndex = sorted.findIndex(p => p.id === participantId)
+        return { rank: rankIndex !== -1 ? rankIndex + 1 : sorted.length + 1 }
+
+    } catch (error: any) {
+        console.error('calculatePlayerRankAction error:', error)
+        return { error: error.message, rank: 1 }
+    }
+}
