@@ -1,18 +1,10 @@
 'use server'
 
 import { createActionClient } from '@/lib/supabase-actions-client'
-import { createClient } from '@supabase/supabase-js'
+import { getMySupaServer } from '@/lib/supabase-mysupa-server'
 
-// Helper to get mysupa client
-const getMySupaClient = () => {
-    const mysupaUrl = process.env.NEXT_PUBLIC_SUPABASE_URL_MINE
-    const mysupaKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY_MINE
-
-    if (!mysupaUrl || !mysupaKey) {
-        throw new Error("Server configuration error: Gameplay DB not connecting")
-    }
-    return createClient(mysupaUrl, mysupaKey)
-}
+// Alias for cleaner usage
+const getMySupaClient = getMySupaServer
 
 export async function updateGameSettings(roomCode: string, settings: any) {
     const supabase = await createActionClient()

@@ -49,7 +49,7 @@
       box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
     }
 
-      @media (min-width: 768px) {
+    @media (min-width: 768px) {
       #screen-area {
         border: 20px solid #2d3748;
         margin: 20px;
@@ -63,10 +63,10 @@
     }
 
     @media (min-width: 768px) {
-    #mobile-controls {
-      display: none !important;
+      #mobile-controls {
+        display: none !important;
+      }
     }
-  }
 
     #canvas {
       display: block;
@@ -90,19 +90,21 @@
       box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.5);
     }
 
-#mobile-controls {
-  position: absolute !important;
-  bottom: 40px;                /* <-- ubah angka ini sesuai keinginan */
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-evenly;
-  align-items: flex-end;
-  gap: 0.5rem;
-  padding: 0 1.5rem;
-  z-index: 30;                 /* pastikan di atas canvas */
-  pointer-events: auto;
-}
+    #mobile-controls {
+      position: absolute !important;
+      bottom: 40px;
+      /* <-- ubah angka ini sesuai keinginan */
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-evenly;
+      align-items: flex-end;
+      gap: 0.5rem;
+      padding: 0 1.5rem;
+      z-index: 30;
+      /* pastikan di atas canvas */
+      pointer-events: auto;
+    }
 
     #mobile-controls button {
       width: auto;
@@ -124,8 +126,8 @@
     }
 
     #mobile-controls button:active {
-  
-      transform: scale(0.95);   
+
+      transform: scale(0.95);
     }
 
     #accel-brake-controls,
@@ -319,56 +321,61 @@
       max-width: 80%;
     }
 
-     #desktop-controls {
-    position: fixed;
-    bottom: 20px;
-    left: 20px;
-    z-index: 100;
-    display: none; /* Default disembunyikan */
-  }
+    #desktop-controls {
+      position: fixed;
+      bottom: 20px;
+      left: 20px;
+      z-index: 100;
+      display: none;
+      /* Default disembunyikan */
+    }
 
-  @media (min-width: 768px) {
-  #desktop-controls {
-    display: grid;
-    grid-template-columns: 60px 60px 60px;
-    grid-template-rows: 60px 60px;
-    grid-template-areas:
-      ". up ."
-      "left center right"
-      ". down .";
-    gap: 8px;
-  }
-}
+    @media (min-width: 768px) {
+      #desktop-controls {
+        display: grid;
+        grid-template-columns: 60px 60px 60px;
+        grid-template-rows: 60px 60px;
+        grid-template-areas:
+          ". up ."
+          "left center right"
+          ". down .";
+        gap: 8px;
+      }
+    }
 
-.desk-btn {
-  width: 80px;
-  height: 80px;
-  border-radius: 0px;           /* sudut melengkung ringan (bisa diganti 0px kalau mau kotak lurus) */
- 
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    .desk-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 0px;
+      /* sudut melengkung ringan (bisa diganti 0px kalau mau kotak lurus) */
 
-  transition: all 0.15s ease;
-  overflow: visible;             /* penting! biar gambar tidak dipotong */
-}
+      display: flex;
+      align-items: center;
+      justify-content: center;
 
-.desk-btn img {
-  width: 100%;           /* gambar di dalam tombol jadi lebih besar */
-  height: 100%;
-  object-fit: contain;
-}
+      transition: all 0.15s ease;
+      overflow: visible;
+      /* penting! biar gambar tidak dipotong */
+    }
 
-.desk-btn:active {
+    .desk-btn img {
+      width: 100%;
+      /* gambar di dalam tombol jadi lebih besar */
+      height: 100%;
+      object-fit: contain;
+    }
 
-  transform: scale(0.95);
- 
-}
+    .desk-btn:active {
+
+      transform: scale(0.95);
+
+    }
   </style>
 </head>
 
 <body>
-  <div id="controls-info" class="hidden bg-gray-800 text-white p-4 rounded-lg shadow-lg" style="position: fixed; top: 1rem; right: 1rem; z-index: 100; opacity: 1; transition: opacity 0.5s ease-out;">
+  <div id="controls-info" class="hidden bg-gray-800 text-white p-4 rounded-lg shadow-lg"
+    style="position: fixed; top: 1rem; right: 1rem; z-index: 100; opacity: 1; transition: opacity 0.5s ease-out;">
     <p>Use <strong>WASD</strong> or <strong>Arrow Keys</strong> to move.</p>
   </div>
   <div id="game-container">
@@ -439,27 +446,27 @@
     </div>
 
 
-  <div id="mobile-controls" class="md:hidden">  <!-- md:hidden = Tailwind: sembunyi di ≥768px -->
-    <div id="accel-brake-controls">
-      <button id="brake" class="control-btn" title="Brake">
-        <img src="./images/down.webp" alt="Brake" width="100%">
-      </button>
-      <button id="accel" class="control-btn" title="Accelerate">
-        <img src="./images/up.webp" alt="Accelerate" width="100%">
-      </button>
-    </div>
-    <div id="steering-controls">
-      <button id="left" class="control-btn" title="Steer Left">
-        <img src="./images/left.webp" alt="Steer Left" width="100%">
-      </button>
-      <button id="right" class="control-btn" title="Steer Right">
-        <img src="./images/right.webp" alt="Steer Right" width="100%">
-      </button>
+    <div id="mobile-controls" class="md:hidden"> <!-- md:hidden = Tailwind: sembunyi di ≥768px -->
+      <div id="steering-controls">
+        <button id="left" class="control-btn" title="Steer Left">
+          <img src="./images/left.webp" alt="Steer Left" width="100%">
+        </button>
+        <button id="right" class="control-btn" title="Steer Right">
+          <img src="./images/right.webp" alt="Steer Right" width="100%">
+        </button>
+      </div>
+      <div id="accel-brake-controls">
+        <button id="brake" class="control-btn" title="Brake">
+          <img src="./images/down.webp" alt="Brake" width="100%">
+        </button>
+        <button id="accel" class="control-btn" title="Accelerate">
+          <img src="./images/up.webp" alt="Accelerate" width="100%">
+        </button>
+      </div>
     </div>
   </div>
-    </div>
 
-    <div id="desktop-controls">
+  <div id="desktop-controls">
     <div class="desk-btn" id="desk-up" style="grid-area: up;">
       <img src="./images/up.webp" alt="Accelerate" class="w-full h-full object-contain">
     </div>
@@ -1060,7 +1067,7 @@
 
     window.addEventListener('resize', () => {
       resizeCanvas();
-      
+
     });
 
     resizeCanvas();
@@ -1091,7 +1098,7 @@
   </script>
 
   <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
       if (!isTouchDevice) {
         const controlsInfo = document.getElementById('controls-info');
@@ -1106,40 +1113,40 @@
         }
       }
     });
-          const deskUp    = document.getElementById('desk-up');
-const deskDown  = document.getElementById('desk-down');
-const deskLeft  = document.getElementById('desk-left');
-const deskRight = document.getElementById('desk-right');
+    const deskUp = document.getElementById('desk-up');
+    const deskDown = document.getElementById('desk-down');
+    const deskLeft = document.getElementById('desk-left');
+    const deskRight = document.getElementById('desk-right');
 
-function handlePress(flagSetter) {
-  return function(e) {
-    e.preventDefault();
-    if (!gameFinished) flagSetter(true);
-  };
-}
+    function handlePress(flagSetter) {
+      return function (e) {
+        e.preventDefault();
+        if (!gameFinished) flagSetter(true);
+      };
+    }
 
-function handleRelease(flagSetter) {
-  return function(e) {
-    e.preventDefault();
-    flagSetter(false);
-  };
-}
+    function handleRelease(flagSetter) {
+      return function (e) {
+        e.preventDefault();
+        flagSetter(false);
+      };
+    }
 
-deskUp.addEventListener('mousedown', handlePress(() => { keyFaster = true; }));
-deskUp.addEventListener('mouseup',   handleRelease(() => { keyFaster = false; }));
-deskUp.addEventListener('mouseleave', handleRelease(() => { keyFaster = false; }));
+    deskUp.addEventListener('mousedown', handlePress(() => { keyFaster = true; }));
+    deskUp.addEventListener('mouseup', handleRelease(() => { keyFaster = false; }));
+    deskUp.addEventListener('mouseleave', handleRelease(() => { keyFaster = false; }));
 
-deskDown.addEventListener('mousedown', handlePress(() => { keySlower = true; }));
-deskDown.addEventListener('mouseup',   handleRelease(() => { keySlower = false; }));
-deskDown.addEventListener('mouseleave', handleRelease(() => { keySlower = false; }));
+    deskDown.addEventListener('mousedown', handlePress(() => { keySlower = true; }));
+    deskDown.addEventListener('mouseup', handleRelease(() => { keySlower = false; }));
+    deskDown.addEventListener('mouseleave', handleRelease(() => { keySlower = false; }));
 
-deskLeft.addEventListener('mousedown', handlePress(() => { keyLeft = true; }));
-deskLeft.addEventListener('mouseup',   handleRelease(() => { keyLeft = false; }));
-deskLeft.addEventListener('mouseleave', handleRelease(() => { keyLeft = false; }));
+    deskLeft.addEventListener('mousedown', handlePress(() => { keyLeft = true; }));
+    deskLeft.addEventListener('mouseup', handleRelease(() => { keyLeft = false; }));
+    deskLeft.addEventListener('mouseleave', handleRelease(() => { keyLeft = false; }));
 
-deskRight.addEventListener('mousedown', handlePress(() => { keyRight = true; }));
-deskRight.addEventListener('mouseup',   handleRelease(() => { keyRight = false; }));
-deskRight.addEventListener('mouseleave', handleRelease(() => { keyRight = false; }));
+    deskRight.addEventListener('mousedown', handlePress(() => { keyRight = true; }));
+    deskRight.addEventListener('mouseup', handleRelease(() => { keyRight = false; }));
+    deskRight.addEventListener('mouseleave', handleRelease(() => { keyRight = false; }));
   </script>
 </body>
 

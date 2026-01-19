@@ -473,7 +473,7 @@ export default function LobbyPage() {
     };
   }, [session?.id, roomCode, router, showLoading]);
 
-  // 🚀 BROADCAST LISTENER (Fast path for countdown - separate useEffect)
+  // 🚀 BROADCAST LISTENER (Fast path for countdown - instant from host)
   useEffect(() => {
     if (!roomCode) return;
 
@@ -481,7 +481,7 @@ export default function LobbyPage() {
       .on('broadcast', { event: 'countdown' }, (payload) => {
         console.log("⚡ Broadcast countdown received:", payload);
         const startTime = payload.payload?.countdown_started_at;
-        if (startTime) {
+        if (startTime && countdown === 0) {
           startCountdownSync(startTime, 10);
           // Trigger preloads instantly
           if (session?.difficulty) preloadMinigameAssets(session.difficulty);
@@ -493,8 +493,33 @@ export default function LobbyPage() {
     return () => {
       mysupa.removeChannel(broadcastChannel);
     };
-  }, [roomCode, startCountdownSync, session?.difficulty, preloadMinigameAssets, prefetchGameData]);
+  }, [roomCode, startCountdownSync, countdown, session?.difficulty, preloadMinigameAssets, prefetchGameData]);
 
+  // 🛡️ POLLING SAFETY NET (Fallback check every 3 seconds if no countdown yet)
+  useEffect(() => {
+    if (!roomCode || !session?.id || countdown > 0 || gamePhase === 'active') return;
+
+    const pollInterval = setInterval(async () => {
+      const { data } = await mysupa
+        .from("sessions")
+        .select("countdown_started_at, status")
+        .eq("game_pin", roomCode)
+        .single();
+
+      if (data?.countdown_started_at && countdown === 0) {
+        console.log("📡 Polling detected countdown:", data.countdown_started_at);
+        startCountdownSync(data.countdown_started_at, 10);
+        if (session?.difficulty) preloadMinigameAssets(session.difficulty);
+        prefetchGameData();
+      }
+
+      if (data?.status === 'active') {
+        router.replace(`/player/${roomCode}/game`);
+      }
+    }, 3000);
+
+    return () => clearInterval(pollInterval);
+  }, [roomCode, session?.id, countdown, gamePhase, startCountdownSync, session?.difficulty, preloadMinigameAssets, prefetchGameData, router]);
 
   useEffect(() => {
     const bgInterval = setInterval(() => {

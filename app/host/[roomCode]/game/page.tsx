@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Users, Clock, Crown, Award, SkipForward, Volume2, VolumeX, Check } from "lucide-react"
+import { Users, Clock, SkipForward, Volume2, VolumeX, Check } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { mysupa } from "@/lib/supabase"
@@ -18,8 +18,6 @@ import { Dialog, DialogContent, DialogOverlay, DialogTitle, DialogDescription, D
 import { useHostGuard } from "@/lib/host-guard"
 import { t } from "i18next"
 import { getHostGameDataAction, loadMoreParticipantsAction, endGameAction } from "@/app/actions/game-host"
-
-const backgroundImage = "/assets/background/host/9.webp"
 
 const carGifMap: Record<string, string> = {
   purple: "/assets/car/car1_v2.webp",
@@ -295,14 +293,13 @@ export default function HostMonitorPage() {
   return (
     <div className="h-screen bg-[#1a0a2a] relative overflow-hidden">
       <audio ref={audioRef} src="/assets/music/racingprogress.mp3" loop preload="auto" className="hidden" />
-      <div
-        className="fixed inset-0 w-full h-full"
-        style={{
-          backgroundImage: `url(${backgroundImage})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        }}
+      {/* Static Background Image */}
+      <Image
+        src="/assets/background/host/9.webp"
+        alt="Background"
+        fill
+        className="object-cover fixed"
+        priority
       />
 
       {/* Scrollable Content Wrapper */}
