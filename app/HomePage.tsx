@@ -26,8 +26,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Image from "next/image";
-import { usePreloaderScreen } from "@/components/preloader-screen";
-import LoadingRetroScreen from "@/components/loading-screnn";
 import { useAuth } from "@/contexts/authContext";
 import { useGlobalLoading } from "@/contexts/globalLoadingContext";
 import { useTranslation } from "react-i18next";
@@ -392,8 +390,7 @@ export default function HomePage() {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
   }, []);
 
-  const { isLoaded, progress } = usePreloaderScreen();
-  if (!isLoaded) return <LoadingRetroScreen progress={progress} />;
+
 
   const handleToggleFullscreen = () => {
     if (!document.fullscreenElement)
@@ -412,8 +409,7 @@ export default function HomePage() {
 
   return (
     <div
-      className={`min-h-[100dvh] w-full relative overflow-hidden pixelated pixel-font ${isLoaded ? "p-2" : ""
-        }`}
+      className={`min-h-[100dvh] w-full relative overflow-hidden pixelated pixel-font p-2`}
     >
       <Image
         src="/assets/background/1.webp"
