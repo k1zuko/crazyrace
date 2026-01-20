@@ -4,6 +4,11 @@ import { createActionClient } from '@/lib/supabase-actions-client'
 import { getMySupaServer } from '@/lib/supabase-mysupa-server'
 import { generateXID } from '@/lib/id-generator'
 
+function generateGamePin(length = 6) {
+    const digits = "0123456789";
+    return Array.from({ length }, () => digits[Math.floor(Math.random() * digits.length)]).join("");
+}
+
 /**
  * Get host game data (session + initial participants)
  */
@@ -222,7 +227,7 @@ async function syncResultsToMainDB(roomCode: string, sessionId: string, supabase
                 score: p.score || 0,
                 correct: correctCount,
                 completion: p.completion || false,
-                duration: p.duration || 0,
+                total_completion_time: p.duration || 0,
                 total_question: totalQuestions,
                 current_question: p.current_question || 0,
                 accuracy: accuracy.toFixed(2),
@@ -392,7 +397,7 @@ export async function restartGameAction(roomCode: string) {
         const sliced = shuffled.slice(0, oldSess.question_limit || 5)
 
         // 3. Generate new PIN
-        const newPin = generateGamePin(6)
+        const newPin = generateGamePin()
 
         // 4. Create new session in mysupa
         const { error: mysupaError } = await mysupa
@@ -445,14 +450,4 @@ function shuffleArray<T>(array: T[]): T[] {
         [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
     }
     return shuffled
-}
-
-// Helper: Generate game PIN
-function generateGamePin(length: number): string {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-    let result = ''
-    for (let i = 0; i < length; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length))
-    }
-    return result
 }

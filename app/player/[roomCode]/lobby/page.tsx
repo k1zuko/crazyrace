@@ -11,7 +11,7 @@ import { mysupa } from "@/lib/supabase"
 import LoadingRetro from "@/components/loadingRetro"
 import { useGlobalLoading } from "@/contexts/globalLoadingContext"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogOverlay, DialogTitle } from "@/components/ui/dialog"
-import { getPlayerLobbyData, prefetchGameDataAction, leaveGameAction, updatePlayerCarAction, getParticipantsAction } from "@/app/actions/lobby-player"
+import { getPlayerLobbyData, prefetchGameDataAction, leaveGameAction, updatePlayerCarAction, getParticipantsAction, pollSessionStatusAction } from "@/app/actions/lobby-player"
 
 import Image from "next/image"
 import { breakOnCaps } from "@/utils/game"
@@ -500,26 +500,25 @@ export default function LobbyPage() {
     if (!roomCode || !session?.id || countdown > 0 || gamePhase === 'active') return;
 
     const pollInterval = setInterval(async () => {
-      const { data } = await mysupa
-        .from("sessions")
-        .select("countdown_started_at, status")
-        .eq("game_pin", roomCode)
-        .single();
+      // ✅ Use server action instead of client-side mysupa (security: no API key exposure)
+      const data = await pollSessionStatusAction(roomCode);
 
-      if (data?.countdown_started_at && countdown === 0) {
+      if (data.error) return;
+
+      if (data.countdown_started_at && countdown === 0) {
         console.log("📡 Polling detected countdown:", data.countdown_started_at);
         startCountdownSync(data.countdown_started_at, 10);
-        if (session?.difficulty) preloadMinigameAssets(session.difficulty);
+        if (data.difficulty) preloadMinigameAssets(data.difficulty);
         prefetchGameData();
       }
 
-      if (data?.status === 'active') {
+      if (data.status === 'active') {
         router.replace(`/player/${roomCode}/game`);
       }
     }, 3000);
 
     return () => clearInterval(pollInterval);
-  }, [roomCode, session?.id, countdown, gamePhase, startCountdownSync, session?.difficulty, preloadMinigameAssets, prefetchGameData, router]);
+  }, [roomCode, session?.id, countdown, gamePhase, startCountdownSync, preloadMinigameAssets, prefetchGameData, router]);
 
   useEffect(() => {
     const bgInterval = setInterval(() => {
@@ -577,13 +576,13 @@ export default function LobbyPage() {
           {/* Left side: Crazy Race logo */}
           <div className="flex items-center gap-4">
             <div className="hidden md:block">
-              <Image src="/crazyrace-logo.png" alt="Crazy Race" width={270} height={50} style={{ imageRendering: 'auto' }} className="h-auto drop-shadow-xl" />
+              <Image src="/crazyrace-logo.webp" alt="Crazy Race" width={270} height={50} style={{ imageRendering: 'auto' }} className="h-auto drop-shadow-xl" />
             </div>
           </div>
 
           {/* Right side: Gameforsmart logo */}
           <div className="hidden md:block">
-            <Image src="/gameforsmart-logo.png" alt="Gameforsmart Logo" width={300} height={100} />
+            <Image src="/gameforsmart-logo.webp" alt="Gameforsmart Logo" width={300} height={100} />
           </div>
         </div>
 

@@ -199,11 +199,11 @@
 //                             <ArrowLeft size={20} className="text-white" />
 //                         </motion.button>
 //                         <div className="hidden md:block">
-//                             <Image src="/crazyrace-logo.png" alt="Crazy Race" width={270} height={50} style={{ imageRendering: 'auto' }} className="h-auto drop-shadow-xl" />
+//                             <Image src="/crazyrace-logo.webp" alt="Crazy Race" width={270} height={50} style={{ imageRendering: 'auto' }} className="h-auto drop-shadow-xl" />
 //                         </div>
 //                     </div>
 //                     <div className="hidden md:block">
-//                         <Image src="/gameforsmart-logo.png" alt="Gameforsmart Logo" width={300} height={100} />
+//                         <Image src="/gameforsmart-logo.webp" alt="Gameforsmart Logo" width={300} height={100} />
 //                     </div>
 //                 </div>
 
