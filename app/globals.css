@@ -197,3 +197,9 @@
   scrollbar-width: thin;
   scrollbar-color: #ff6bff rgba(26, 10, 42, 0.8);
 }
+
+img {
+  -webkit-user-drag: none;
+  user-drag: none;
+  user-select: none;
+}
