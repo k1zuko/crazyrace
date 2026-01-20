@@ -543,7 +543,7 @@ export default function QuizGamePage() {
   return (
     <div className="min-h-screen bg-[#1a0a2a] relative overflow-hidden">
       {/* ============ QUIZ UI ============ */}
-      <div className={gameMode === 'quiz' ? 'block' : 'hidden'}>
+      <div style={{ display: gameMode === 'quiz' ? 'block' : 'none' }}>
         <AnimatePresence mode="wait">
           <motion.div
             key={currentBgIndex}
@@ -617,7 +617,7 @@ export default function QuizGamePage() {
       </div>
 
       {/* ============ RACING GAME (ALWAYS MOUNTED, TOGGLE VISIBILITY) ============ */}
-      <div className={`w-full h-screen absolute inset-0 ${gameMode === 'racing' ? 'block z-50' : 'hidden'}`}>
+      <div className="w-full h-screen absolute inset-0 z-50" style={{ display: gameMode === 'racing' ? 'block' : 'none' }}>
         {/* Timer overlay for racing */}
         {gameMode === 'racing' && totalTimeRemaining > 0 && (
           <div className={`absolute top-4 left-1/2 -translate-x-1/2 z-50 bg-black/70 text-white px-4 py-2 rounded-lg text-lg font-bold shadow-lg ${getTimeColor()}`}>

@@ -107,6 +107,11 @@ export default function QuestionListPage() {
     fetchQuizzes();
   }, [profile?.id, currentPage, searchQuery, selectedCategory, favoritesMode, myQuizzesMode]); // ✅ Removed favorites from deps
 
+  // Helper function to scroll to top of quiz container
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Reset page to 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -495,7 +500,10 @@ export default function QuestionListPage() {
                     className="flex justify-center items-center gap-2 mt-8 flex-wrap"
                   >
                     <Button
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      onClick={() => {
+                        setCurrentPage((p) => Math.max(1, p - 1));
+                        scrollToTop();
+                      }}
                       disabled={currentPage === 1 || loading}
                       className="pixel-button bg-[#ff6bff] border-4 border-white hover:bg-[#ff8aff] glow-pink disabled:opacity-50 disabled:cursor-not-allowed"
                       variant="outline"
@@ -507,7 +515,10 @@ export default function QuestionListPage() {
                       typeof item === 'number' ? (
                         <Button
                           key={`page-${item}`}
-                          onClick={() => setCurrentPage(item)}
+                          onClick={() => {
+                            setCurrentPage(item);
+                            scrollToTop();
+                          }}
                           disabled={loading}
                           variant={item === currentPage ? "default" : "outline"}
                           className={`pixel-button ${item === currentPage
@@ -523,7 +534,10 @@ export default function QuestionListPage() {
                     ))}
 
                     <Button
-                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      onClick={() => {
+                        setCurrentPage((p) => Math.min(totalPages, p + 1));
+                        scrollToTop();
+                      }}
                       disabled={currentPage === totalPages || loading}
                       className="pixel-button bg-[#ff6bff] border-4 border-white hover:bg-[#ff8aff] glow-pink disabled:opacity-50 disabled:cursor-not-allowed"
                       variant="outline"
