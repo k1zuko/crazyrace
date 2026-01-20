@@ -1,4 +1,4 @@
-import { mysupa, supabase } from "@/lib/supabase"
+import { getServerTimeAction } from "@/app/actions/lobby-player"
 
 let serverTimeOffset: number | null = null
 let lastSyncTime = 0
@@ -7,11 +7,11 @@ const SYNC_INTERVAL = 10000
 export async function getServerTime(): Promise<number> {
   try {
     const start = Date.now()
-    const { data, error } = await mysupa.rpc("get_server_time")
-    if (error) throw error
+    const result = await getServerTimeAction()
+    if (result.error) throw new Error(result.error)
     const end = Date.now()
     const latency = (end - start) / 2
-    const serverTime = new Date(data).getTime()
+    const serverTime = new Date(result.serverTime).getTime()
     return serverTime + latency
   } catch (err) {
     console.warn("Fallback ke client time:", err)

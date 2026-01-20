@@ -176,3 +176,41 @@ export async function getParticipantsAction(roomCode: string, participantId: str
         return { error: error.message }
     }
 }
+
+/**
+ * Poll session status for countdown/status changes (secure server-side)
+ */
+export async function pollSessionStatusAction(roomCode: string) {
+    const mysupa = getMySupaServer()
+    try {
+        const { data, error } = await mysupa
+            .from("sessions")
+            .select("countdown_started_at, status, difficulty")
+            .eq("game_pin", roomCode)
+            .single()
+
+        if (error) return { error: error.message }
+
+        return {
+            countdown_started_at: data?.countdown_started_at || null,
+            status: data?.status || null,
+            difficulty: data?.difficulty || null
+        }
+    } catch (error: any) {
+        return { error: error.message }
+    }
+}
+
+/**
+ * Get server time securely (no API key exposure)
+ */
+export async function getServerTimeAction() {
+    const mysupa = getMySupaServer()
+    try {
+        const { data, error } = await mysupa.rpc("get_server_time")
+        if (error) return { error: error.message }
+        return { serverTime: data }
+    } catch (error: any) {
+        return { error: error.message }
+    }
+}

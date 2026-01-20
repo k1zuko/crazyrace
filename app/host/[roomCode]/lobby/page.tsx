@@ -481,14 +481,14 @@ export default function HostRoomPage() {
             </motion.button>
 
             <div className="hidden md:block">
-              <Image src="/crazyrace-logo.png" alt="Crazy Race" width={270} height={50} style={{ imageRendering: 'auto' }} className="h-auto drop-shadow-xl" />
+              <Image src="/crazyrace-logo.webp" alt="Crazy Race" width={270} height={50} style={{ imageRendering: 'auto' }} className="h-auto drop-shadow-xl" />
             </div>
           </div>
 
           {/* Right side: Gameforsmart logo + Mute button */}
           <div className="flex items-center gap-4">
             <div className="hidden md:block">
-              <Image src="/gameforsmart-logo.png" alt="Gameforsmart Logo" width={300} height={100} />
+              <Image src="/gameforsmart-logo.webp" alt="Gameforsmart Logo" width={300} height={100} />
             </div>
             <motion.button
               initial={{ opacity: 0, x: 20 }}

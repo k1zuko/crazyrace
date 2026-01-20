@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { mysupa } from "@/lib/supabase";
 import { useAuth } from "@/contexts/authContext";
 import { useGlobalLoading } from "@/contexts/globalLoadingContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { CardTitle, CardDescription } from "@/components/ui/card";
 import Image from "next/image";
 import { useTranslation } from "react-i18next";
+import { joinGameAction } from "@/app/actions/join-game";
 
 export default function CodePage() {
   const router = useRouter();
@@ -74,24 +74,12 @@ export default function CodePage() {
           user.email?.split("@")[0] ||
           "Player";
 
-        // Call join_game RPC
-        const { data, error } = await mysupa.rpc("join_game", {
-          p_room_code: roomCode,
-          p_user_id: profile.id,
-          p_nickname: nickname,
-        });
+        // Call join_game via server action (uses service role key)
+        const result = await joinGameAction(roomCode, profile.id, nickname);
 
-        if (!data || error) {
-          console.error("Join RPC error:", error);
-          setAlertReason("general");
-          setShowAlert(true);
-          hideLoading();
-          return;
-        }
-
-        // Handle specific errors from RPC
-        if (data.error) {
-          switch (data.error) {
+        if (result.error) {
+          console.error("Join error:", result.error);
+          switch (result.error) {
             case "duplicate_nickname":
               setAlertReason("duplicate");
               break;
@@ -114,8 +102,8 @@ export default function CodePage() {
 
         // Success! Save data and redirect to lobby
         // Keep global loading visible during navigation!
-        localStorage.setItem("nickname", data.nickname);
-        localStorage.setItem("participantId", data.participant_id);
+        localStorage.setItem("nickname", result.nickname || nickname);
+        localStorage.setItem("participantId", result.participantId || "");
         localStorage.setItem("game_pin", roomCode);
         localStorage.removeItem("pendingRoomCode");
         localStorage.removeItem("roomCode");
