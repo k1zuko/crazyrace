@@ -48,12 +48,6 @@ const pressStart = Press_Start_2P({
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="preload" as="image" href="/gameforsmart-logo.webp" type="image/png" fetchPriority="high" />
-        <link rel="preload" as="image" href="/crazyrace-logo.webp" type="image/png" fetchPriority="high" />
-        <link rel="preload" as="image" href="/crazyrace-logo-utama.webp" type="image/png" fetchPriority="high" />
-        <link rel="preload" as="image" href="/assets/background/1.webp" type="image/webp" fetchPriority="high" />
-      </head>
       <body className={pressStart.className}>
         <ClientLayout>{children}</ClientLayout>
       </body>
