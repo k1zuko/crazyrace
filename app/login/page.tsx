@@ -152,6 +152,7 @@ export default function LoginPage() {
             width={200}
             height={70}
             className="h-auto mx-auto"
+            priority
           />
         </div>
 
