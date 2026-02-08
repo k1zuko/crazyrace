@@ -28,6 +28,15 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   useEffect(() => {
     if (isClient && i18n.language) {
       document.documentElement.lang = i18n.language;
+
+      // Set direction and body class for Arabic
+      if (i18n.language === 'ar') {
+        document.documentElement.dir = 'rtl';
+        document.body.classList.add('lang-ar');
+      } else {
+        document.documentElement.dir = 'ltr';
+        document.body.classList.remove('lang-ar');
+      }
     }
   }, [i18n.language, isClient]);
 

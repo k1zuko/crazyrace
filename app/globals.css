@@ -123,6 +123,14 @@
   body {
     @apply bg-background text-foreground;
     image-rendering: pixelated;
+    font-family: var(--font-pixel), system-ui, sans-serif;
+  }
+  
+  /* RTL direction for Arabic language */
+  html[lang="ar"] body,
+  html[dir="rtl"] body,
+  body.lang-ar {
+    direction: rtl;
   }
 }
 

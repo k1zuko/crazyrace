@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { Card, CardHeader, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock } from "lucide-react"
+import { Clock, CheckCircle, XCircle, X, Maximize2 } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { mysupa, supabase } from "@/lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
@@ -26,7 +26,11 @@ const backgroundGifs = [
 type QuizQuestion = {
   id: string
   question: string
-  options: string[]
+  image?: string | null
+  answers: {
+    answer: string
+    image?: string | null
+  }[]
   // correctAnswer tidak disimpan di client untuk keamanan
 }
 
@@ -62,6 +66,8 @@ export default function QuizGamePage() {
   const [gameStartTime, setGameStartTime] = useState<number | null>(null)
   const [gameDuration, setGameDuration] = useState(0)
   const [session, setSession] = useState<any>(null);
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null)
+
   const sessionRef = useRef(session);
   const hasBootstrapped = useRef(false);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -123,7 +129,7 @@ export default function QuizGamePage() {
           // Set all states dari prefetched data
           setCurrentQuestionIndex(answeredCount);
           setSession(prefetched.session);
-          setQuestions(prefetched.questions);
+          setQuestions(parseQuizQuestions(prefetched.questions));
           setGameDuration((prefetched.session.total_time_minutes || 5) * 60);
           setGameStartTime(new Date(prefetched.session.started_at).getTime());
 
@@ -160,7 +166,7 @@ export default function QuizGamePage() {
 
       if (cachedQuestions) {
         // Soal sudah tersimpan, gunakan dari cache
-        const parsedQuestions = JSON.parse(cachedQuestions);
+        const parsedQuestions = parseQuizQuestions(JSON.parse(cachedQuestions));
 
         // Ambil session info (timing, status, difficulty)
         const { data: sess, error } = await mysupa
@@ -249,15 +255,10 @@ export default function QuizGamePage() {
       setGameSrc(src);
 
       // 3. Parse questions TANPA correctAnswer (untuk keamanan)
-      const parsedQuestions = (sess.current_questions || []).map((q: any) => ({
-        id: q.id,
-        question: q.question,
-        options: q.answers.map((a: any) => a.answer),
-        // correctAnswer TIDAK disimpan di client! Akan di-check via server
-      }));
+      const parsedQuestions = parseQuizQuestions(sess.current_questions || []);
 
       // 4. Simpan soal ke localStorage (TANPA jawaban - aman)
-      localStorage.setItem(cachedQuestionsKey, JSON.stringify(parsedQuestions));
+      localStorage.setItem(cachedQuestionsKey, JSON.stringify(sess.current_questions || []));
 
       // 5. Ambil participant (termasuk racing status)
       const { data: participant } = await mysupa
@@ -298,6 +299,43 @@ export default function QuizGamePage() {
     }
   }, [participantId, roomCode, router]);
 
+  // Tambahkan di atas return (di dalam component)
+  useEffect(() => {
+    if (zoomedImage) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setZoomedImage(null);
+      }
+    };
+
+    window.addEventListener('keydown', handleEsc);
+
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleEsc);
+    };
+  }, [zoomedImage]);
+
+  // Helper function to parse questions from DB or Cache
+  const parseQuizQuestions = (rawQuestions: any[]): QuizQuestion[] => {
+    return rawQuestions.map((q: any) => ({
+      id: q.id,
+      question: q.question,
+      image: q.image || null,
+      answers: Array.isArray(q.answers)
+        ? q.answers.map((a: any) => ({
+          answer: typeof a === 'object' ? a.answer : a,
+          image: typeof a === 'object' ? a.image : null
+        }))
+        : [],
+      // options: Keeping types consistent by using 'answers' instead
+    }));
+  };
 
   useEffect(() => {
     if (participantId) {
@@ -540,7 +578,43 @@ export default function QuizGamePage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#1a0a2a] relative overflow-hidden">
+    <div className="min-h-screen relative">
+      {/* ============ ZOOMED IMAGE MODAL ============ */}
+      <AnimatePresence>
+        {zoomedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/65 backdrop-blur-sm"
+            onClick={() => setZoomedImage(null)}
+          >
+            <div className="relative max-w-[50vw] w-full flex items-center justify-center p-8">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setZoomedImage(null);
+                }}
+                className="absolute top-4 right-4 p-3 bg-black/70 rounded-full text-white hover:bg-white/20 z-50 transition-all backdrop-blur-sm"
+                aria-label="Close Zoom"
+              >
+                <X className="w-4 h-4" />
+              </button>
+
+              {/* GAMBAR ZOOM - DIPAKSA BESAR MESKI RESOLUSI KECIL */}
+              <img
+                src={zoomedImage}
+                alt="Zoomed"
+                className="w-[70vw] object-contain rounded-2xl cursor-zoom-out select-none"
+                onClick={(e) => e.stopPropagation()}
+                draggable={false}
+
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ============ QUIZ UI ============ */}
       <div className={gameMode === 'quiz' ? 'block' : 'hidden'}>
         <AnimatePresence mode="wait">
@@ -554,16 +628,16 @@ export default function QuizGamePage() {
               backgroundRepeat: 'no-repeat'
             }}
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            animate={{ opacity: 0.4 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 1, ease: "easeInOut" }}
           />
         </AnimatePresence>
-        <div className="relative z-10 max-w-7xl mx-auto pt-8 px-4">
+        <div className="relative z-10 max-w-7xl mx-auto pt-8 px-4 pb-20 h-screen">
           <div className="text-center">
             <Image src="/crazyrace-logo-utama.webp" alt="Crazy Race" width={200} height={80} sizes="200px" style={{ imageRendering: 'auto' }} className="h-auto mx-auto drop-shadow-xl" />
           </div>
-          <Card className="bg-[#1a0a2a]/40 border-[#ff6bff]/50 pixel-card my-8 px-4 py-2">
+          <Card className="bg-[#1a0a2a]/80 border-[#ff6bff]/50 pixel-card my-6 px-4 py-2 top-0 z-20">
             <CardContent className="px-0">
               <div className="flex sm:items-center justify-between gap-4">
                 <div className="flex items-center space-x-3 sm:space-x-4">
@@ -582,33 +656,90 @@ export default function QuizGamePage() {
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-[#1a0a2a]/40 border-[#ff6bff]/50 pixel-card">
-            <CardHeader className="text-center pb-4 px-4">
-              <div className="max-h-[200px] overflow-y-auto"> {/* <-- ini yang penting */}
-                <h2 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-bold text-[#00ffff] pixel-text glow-cyan leading-tight text-balance whitespace-pre-wrap break-words px-2">
+          <Card className="bg-[#1a0a2a]/80 border-[#ff6bff]/50 pixel-card">
+            <CardHeader className="text-center px-4">
+              {/* Gambar pertanyaan (jika ada) */}
+              {currentQuestion.image && (
+                <div className="mb-4 w-full flex justify-center">
+                  <div className="relative group cursor-zoom-in" onClick={() => setZoomedImage(currentQuestion.image || null)}>
+                    <Image
+                      src={currentQuestion.image}
+                      alt="Question Image"
+                      width={200}
+                      height={100}
+                      className="rounded-lg max-h-[150px] sm:max-h-[250px] w-auto object-contain border-2 border-[#ff6bff]/50 shadow-lg hover:borderColor-[#00ffff] transition-all"
+                      unoptimized
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <div className="bg-black/50 p-2 rounded-full backdrop-blur-sm shadow-lg transform transition-transform group-hover:scale-110">
+                        <Maximize2 className="w-6 h-6 text-[#00ffff]" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="max-h-[200px] overflow-y-auto custom-scrollbar">
+                <h2 className="text-base md:text-lg text-[#00ffff] pixel-text leading-tight text-left whitespace-pre-wrap break-words px-2">
                   {currentQuestion.question}
                 </h2>
               </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {currentQuestion.options.map((option, index) => (
-                  <motion.button
-                    key={index}
-                    onClick={() => handleAnswerSelect(index)}
-                    disabled={isAnswered}
-                    className={`p-3 sm:p-4 rounded-xl border-4 border-double transition-all duration-200 text-left bg-[#1a0a2a]/50 w-full overflow-hidden ${getOptionStyle(index)}`}
-                    whileHover={{ scale: isAnswered ? 1 : 1.01 }}
-                    whileTap={{ scale: isAnswered ? 1 : 0.99 }}
-                  >
-                    <div className="flex items-center gap-2 sm:gap-3 w-full">
-                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#ff6bff]/20 flex items-center justify-center font-bold text-[#ff6bff] pixel-text glow-pink-subtle flex-shrink-0 text-sm sm:text-base">
-                        {String.fromCharCode(65 + index)}
+                {currentQuestion.answers.map((option, index) => {
+                  return (
+                    <motion.button
+                      key={index}
+                      onClick={() => handleAnswerSelect(index)}
+                      disabled={isAnswered}
+                      className={`
+                        p-3 sm:p-4 rounded-xl border-4 border-double transition-all duration-200 text-left bg-[#1a0a2a]/50 w-full overflow-hidden relative group
+                        ${getOptionStyle(index)}
+                        ${isAnswered ? 'cursor-default' : 'cursor-pointer'}
+                      `}
+                      whileHover={{ scale: isAnswered ? 1 : 1.01 }}
+                      whileTap={{ scale: isAnswered ? 1 : 0.99 }}
+                    >
+                      <div className={`flex w-full ${option.image ? 'flex-col items-center gap-3' : 'flex-row items-center gap-2 sm:gap-3'}`}>
+                        <div className={`
+                          w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#ff6bff]/20 flex items-center justify-center font-bold text-[#ff6bff] pixel-text glow-pink-subtle flex-shrink-0 text-sm sm:text-base
+                          ${option.image ? 'absolute top-3 left-3 z-10 bg-black/60' : ''}
+                        `}>
+                          {String.fromCharCode(65 + index)}
+                        </div>
+
+                        {/* Gambar Jawaban */}
+                        {option.image && (
+                          <div className="w-full flex justify-center py-1">
+                            <div
+                              className="relative rounded-lg overflow-hidden border border-[#ff6bff]/30 hover:border-[#00ffff] transition-colors"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setZoomedImage(option.image || null);
+                              }}
+                            >
+                              <Image
+                                src={option.image}
+                                alt={`Answer ${String.fromCharCode(65 + index)}`}
+                                width={200}
+                                height={150}
+                                className="max-h-[100px] sm:max-h-[120px] md:max-h-[150px] w-auto object-contain hover:scale-105 transition-transform"
+                                unoptimized
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Teks jawaban - hanya tampilkan jika bukan placeholder titik */}
+                        {(!option.image || (option.answer && option.answer !== ".")) && (
+                          <span className={`text-xs md:text-sm text-white pixel-text glow-text break-words leading-tight flex-1 min-w-0 ${option.image ? 'text-center w-full' : ''}`}>
+                            {option.answer}
+                          </span>
+                        )}
                       </div>
-                      <span className="text-sm sm:text-base md:text-lg font-medium text-white pixel-text glow-text break-words leading-tight flex-1 min-w-0">{option}</span>
-                    </div>
-                  </motion.button>
-                ))}
+                    </motion.button>
+                  )
+                })}
               </div>
             </CardContent>
           </Card>
@@ -646,6 +777,9 @@ export default function QuizGamePage() {
         .glow-red { filter: drop-shadow(0 0 10px rgba(255, 0, 0, 0.8)); }
         .glow-text { filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8)); }
         .animate-neon-pulse { animation: neon-pulse 1.5s ease-in-out infinite; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #ff6bff; border-radius: 3px; }
         @keyframes neon-pulse {
           0%, 100% { box-shadow: 0 0 10px rgba(0, 255, 255, 0.7), 0 0 20px rgba(0, 255, 255, 0.5); }
           50% { box-shadow: 0 0 15px rgba(0, 255, 255, 1), 0 0 30px rgba(0, 255, 255, 0.8); }

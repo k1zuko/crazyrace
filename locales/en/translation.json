@@ -138,7 +138,8 @@
     "language": "Language",
     "languages": {
       "en": "English",
-      "id": "Bahasa Indonesia"
+      "id": "Bahasa Indonesia",
+      "ar": "العربية"
     },
     "loadingSession": "Loading session or session not found...",
     "unknownQuiz": "Unknown Quiz",
@@ -191,7 +192,8 @@
     "you": "YOU",
     "languages": {
       "en": "English",
-      "id": "Bahasa Indonesia"
+      "id": "Bahasa Indonesia",
+      "ar": "العربية"
     }
   },
   "monitor":{
@@ -221,5 +223,10 @@
     "score": "Score",
     "time": "Time",
     "accuracy": "Accuracy"
+  },
+  "pwa": {
+    "installTitle": "Install Crazy Race!",
+    "install": "Install",
+    "later": "Later"
   }
 }
