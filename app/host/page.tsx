@@ -15,6 +15,7 @@ import Image from "next/image"
 import { useAuth } from "@/contexts/authContext"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useTranslation } from "react-i18next"
+import i18n from "i18next"
 import { t } from "i18next"
 import { generateXID } from "@/lib/id-generator"
 
@@ -505,7 +506,7 @@ export default function QuestionListPage() {
               {/* Search */}
               <div className="relative flex-1">
                 <Input
-                  placeholder="Search Quiz..."
+                  placeholder={t('soal.search')}
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   onKeyDown={(e) => {
@@ -528,12 +529,12 @@ export default function QuestionListPage() {
               {/* Category Select */}
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                 <SelectTrigger className="w-full sm:w-40 lg:w-63 bg-[#0a0a0f] border-4 border-[#6a4c93] text-white focus:border-[#00ffff] cursor-pointer focus:ring-0 text-sm sm:text-lg pixel-text glow-cyan-subtle py-3 px-3 sm:px-4 h-auto capitalize">
-                  <SelectValue placeholder="All Categories" className="capitalize" />
+                  <SelectValue placeholder={t('soal.categories')} className="capitalize" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#1a0a2a] border-4 border-[#ff6bff]/50 text-white capitalize">
                   {categories.map((cat) => (
                     <SelectItem key={cat} value={cat} className="pixel-text capitalize cursor-pointer">
-                      {cat}
+                      {cat === 'All' ? t('soal.categories') : t(`soal.categoryNames.${cat}`, { defaultValue: cat })}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -625,7 +626,7 @@ export default function QuestionListPage() {
                           }}
                         >
                           {/* Favorite Button */}
-                          <div className="absolute top-2 right-2 z-20">
+                          <div className={`absolute top-2 z-20 ${i18n.language === 'ar' ? 'left-2' : 'right-2'}`}>
                             <button
                               onClick={(e) => handleToggleFavorite(e, quiz.id)}
                               className="p-1.5 hover:bg-[#1a0a2a]/50 rounded-full transition-all group cursor-pointer"
@@ -668,7 +669,7 @@ export default function QuestionListPage() {
                           </TooltipProvider>
                           <CardFooter className="flex justify-between items-center">
                             {quiz.category && (
-                              <div className="text-xs text-[#ff6bff] pixel-text glow-pink-subtle capitalize">{quiz.category}</div>
+                              <div className="text-xs text-[#ff6bff] pixel-text glow-pink-subtle capitalize">{t(`soal.categoryNames.${quiz.category}`, { defaultValue: quiz.category })}</div>
                             )}
                             <div className="flex items-center gap-2 text-[#ff6bff] text-sm pixel-text glow-pink-subtle">
                               <HelpCircle className="h-4 w-4" /> {quiz.question_count ?? 0}

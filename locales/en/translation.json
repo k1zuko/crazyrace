@@ -166,7 +166,17 @@
     "volume": "Volume",
     "mute": "Mute",
     "unmute": "Unmute",
-    "language": "Language"
+    "language": "Language",
+    "categoryNames": {
+      "language": "Language",
+      "science": "Science",
+      "technology": "Technology",
+      "math": "Math",
+      "general": "General",
+      "business": "Business",
+      "sports": "Sports",
+      "history": "History"
+    }
   },
     "hostroom": {
     "title": "Host Room",
@@ -222,7 +232,9 @@
     "correct": "Correct",
     "score": "Score",
     "time": "Time",
-    "accuracy": "Accuracy"
+    "accuracy": "Accuracy",
+    "statistics": "Statistics",
+    "waitingForHost": "Waiting for host to finish the game..."
   },
   "pwa": {
     "installTitle": "Install Crazy Race!",

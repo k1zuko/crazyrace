@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Home } from "lucide-react"
+import { Home, BarChart3 } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { mysupa, supabase } from "@/lib/supabase"
@@ -353,22 +353,73 @@ export default function PlayerResultsPage() {
           </Card>
         </motion.div>
 
-        {/* Actions */}
+        {/* Actions Desktop (md ke atas) */}
         <motion.div
-          className="flex flex-row gap-2 justify-center mb-4"
+          className="hidden md:flex fixed mx-7 inset-y-0 left-0 right-0 justify-between items-center pointer-events-none z-50"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8, delay: 0.8 }}
         >
-          <Button
-            size="lg"
-            variant="outline"
-            className="bg-[#1a0a2a]/80 border-[#00ffff] text-[#00ffff] pixel-button glow-cyan hover:bg-[#00ffff]/70"
+          {/* Tombol Home */}
+          <button
             onClick={() => router.push('/')}
+            className="pointer-events-auto flex items-center justify-center w-12 h-12 rounded-full bg-[#1a0a2a]/70 border border-[#00ffff] text-[#00ffff] hover:bg-[#00ffff]/20 transition-all duration-300 shadow-lg"
           >
-            <Home size={70} className="h-10 w-10" />
-          </Button>
+            <Home className="w-6 h-6" />
+          </button>
+
+          {/* Tombol Statistik */}
+          {isGameFinished ? (
+            <a
+              href={`https://gameforsmart2026.vercel.app/results/${sessionId}/answer-details?participant=${participantId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="pointer-events-auto flex items-center justify-center w-12 h-12 rounded-full bg-[#ff6bff]/70 border border-white text-white hover:bg-[#ff8aff]/80 transition-all duration-300 shadow-lg"
+            >
+              <BarChart3 className="w-6 h-6" />
+            </a>
+          ) : (
+            <button
+              disabled
+              className="pointer-events-auto flex items-center justify-center w-12 h-12 rounded-full bg-gray-500/50 border border-gray-400 text-gray-400 cursor-not-allowed opacity-50 shadow-lg"
+              title={t('joinresult.waitingForHost')}
+            >
+              <BarChart3 className="w-6 h-6" />
+            </button>
+          )}
         </motion.div>
+
+        {/* Actions Mobile (sm ke bawah) */}
+        <div className="md:hidden bg-[#1a0a2a]/50 backdrop-blur-sm w-full text-center py-2 fixed bottom-0 left-1/2 transform -translate-x-1/2 z-50 flex items-center justify-center space-x-3">
+          {/* Tombol Home */}
+          <button
+            onClick={() => router.push('/')}
+            className="bg-[#1a0a2a]/70 border border-[#00ffff] rounded-lg text-[#00ffff] px-4 py-2 text-sm hover:bg-[#00ffff]/20 transition-all duration-300"
+          >
+            {t('resulthost.home')}
+          </button>
+
+          {/* Tombol Statistik */}
+          {isGameFinished ? (
+            <a
+              href={`https://gameforsmart2026.vercel.app/results/${sessionId}/answer-details?participant=${participantId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-[#ff6bff] border border-white rounded-lg text-white px-4 py-2 text-sm hover:bg-[#ff8aff]/80 transition-all duration-300 flex items-center gap-2"
+            >
+              <BarChart3 className="w-4 h-4" />
+              {t('joinresult.statistics')}
+            </a>
+          ) : (
+            <button
+              disabled
+              className="bg-gray-500/50 border border-gray-400 rounded-lg text-gray-400 px-4 py-2 text-sm cursor-not-allowed opacity-50 flex items-center gap-2"
+            >
+              <BarChart3 className="w-4 h-4" />
+              {t('joinresult.statistics')}
+            </button>
+          )}
+        </div>
       </div>
 
       <style jsx>{`

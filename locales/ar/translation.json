@@ -166,7 +166,17 @@
     "volume": "مستوى الصوت",
     "mute": "كتم",
     "unmute": "إلغاء الكتم",
-    "language": "اللغة"
+    "language": "اللغة",
+    "categoryNames": {
+      "language": "اللغة",
+      "science": "العلوم",
+      "technology": "التكنولوجيا",
+      "math": "الرياضيات",
+      "general": "عام",
+      "business": "الأعمال",
+      "sports": "الرياضة",
+      "history": "التاريخ"
+    }
   },
   "hostroom": {
     "title": "غرفة المضيف",
@@ -222,7 +232,9 @@
     "correct": "صحيح",
     "score": "النقاط",
     "time": "الوقت",
-    "accuracy": "الدقة"
+    "accuracy": "الدقة",
+    "statistics": "الإحصائيات",
+    "waitingForHost": "في انتظار المضيف لإنهاء اللعبة..."
   },
   "pwa": {
     "installTitle": "ثبّت Crazy Race!",

@@ -166,7 +166,17 @@
     "volume": "Volume",
     "mute": "Senyap",
     "unmute": "Bunyikan",
-    "language": "Bahasa"
+    "language": "Bahasa",
+    "categoryNames": {
+      "language": "Bahasa",
+      "science": "Sains",
+      "technology": "Teknologi",
+      "math": "Matematika",
+      "general": "Umum",
+      "business": "Bisnis",
+      "sports": "Olahraga",
+      "history": "Sejarah"
+    }
   },
     "hostroom": {
     "title": "Ruang Host",
@@ -222,7 +232,9 @@
     "correct": "Benar",
     "score": "Skor",
     "time": "Waktu",
-    "accuracy": "Ketepatan"
+    "accuracy": "Ketepatan",
+    "statistics": "Statistik",
+    "waitingForHost": "Menunggu host menyelesaikan game..."
   },
   "pwa": {
     "installTitle": "Install Crazy Race!",

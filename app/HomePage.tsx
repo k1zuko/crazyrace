@@ -465,7 +465,7 @@ export default function HomePage() {
         className="object-cover fixed -z-10"
         priority
       />
-      <h1 className="absolute top-6 md:top-4 left-4 w-42 md:w-50 lg:w-100">
+      <h1 className="absolute top-6 md:top-4 left-4 w-42 md:w-50 lg:w-auto">
         <Image
           src="/gameforsmart-logo.webp"
           alt="Gameforsmart Logo"
@@ -644,7 +644,7 @@ export default function HomePage() {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden grid grid-cols-2 gap-2"
+                    className="overflow-hidden grid grid-cols-3 gap-2"
                   >
                     {languages.map((lang) => (
                       <motion.button
@@ -653,7 +653,7 @@ export default function HomePage() {
                           handleLanguageSelect(lang.code, lang.name)
                         }
                         whileHover={{ scale: 1.02 }}
-                        className={`flex items-center justify-center p-3 bg-[#1a0a2a]/80 border border-[#00ffff]/30 rounded-lg transition-all duration-200 hover:bg-[#00ffff]/20 hover:border-[#00ffff] ${currentLanguage === lang.code
+                        className={`flex items-center justify-center p-2 bg-[#1a0a2a]/80 border border-[#00ffff]/30 rounded-lg transition-all duration-200 hover:bg-[#00ffff]/20 hover:border-[#00ffff] ${currentLanguage === lang.code
                           ? "border-[#00ffff] bg-[#00ffff]/10"
                           : ""
                           }`}

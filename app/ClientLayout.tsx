@@ -14,6 +14,7 @@ interface ClientLayoutProps {
 export default function ClientLayout({ children }: ClientLayoutProps) {
   const i18n = getI18nInstance();
   const [isClient, setIsClient] = useState(false);
+  const [currentLang, setCurrentLang] = useState(i18n.language);
 
   // ✅ FIX: Pisahkan effect untuk initial setup (run once)
   useEffect(() => {
@@ -24,13 +25,25 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     }
   }, []); // Run only once on mount
 
-  // ✅ FIX: Separate effect untuk update document lang attribute
+  // ✅ FIX: Listen for language changes to trigger re-render
   useEffect(() => {
-    if (isClient && i18n.language) {
-      document.documentElement.lang = i18n.language;
+    const handleLanguageChange = (lng: string) => {
+      setCurrentLang(lng);
+    };
+
+    i18n.on('languageChanged', handleLanguageChange);
+    return () => {
+      i18n.off('languageChanged', handleLanguageChange);
+    };
+  }, [i18n]);
+
+  // ✅ FIX: Update document direction when language changes
+  useEffect(() => {
+    if (isClient && currentLang) {
+      document.documentElement.lang = currentLang;
 
       // Set direction and body class for Arabic
-      if (i18n.language === 'ar') {
+      if (currentLang === 'ar') {
         document.documentElement.dir = 'rtl';
         document.body.classList.add('lang-ar');
       } else {
@@ -38,7 +51,7 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
         document.body.classList.remove('lang-ar');
       }
     }
-  }, [i18n.language, isClient]);
+  }, [currentLang, isClient]);
 
   if (!isClient) {
     return <div className="bg-black min-h-screen" />;
@@ -54,3 +67,4 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
     </ClientProviders>
   );
 }
+
