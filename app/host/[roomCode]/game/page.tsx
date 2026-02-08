@@ -57,7 +57,15 @@ export default function HostMonitorPage() {
   const pageSize = 50;
   const loaderRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { syncServerTime(); }, []);
+  useEffect(() => {
+    syncServerTime();
+
+    // Load mute setting
+    const savedMuted = localStorage.getItem("settings_muted");
+    if (savedMuted !== null) {
+      setIsMuted(savedMuted === "true");
+    }
+  }, []);
 
   const syncResultsToMainSupabase = async (sessionId: string) => {
     try {

@@ -5,7 +5,7 @@ import { Card, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, ArrowLeft, HelpCircle, Heart, User } from "lucide-react"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { mysupa, supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
@@ -15,6 +15,7 @@ import Image from "next/image"
 import { useAuth } from "@/contexts/authContext"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useTranslation } from "react-i18next"
+import i18n from "i18next"
 import { t } from "i18next"
 import { generateXID } from "@/lib/id-generator"
 
@@ -32,7 +33,7 @@ export function generateGamePin(length = 6) {
 
 export default function QuestionListPage() {
   const router = useRouter()
-  const { user } = useAuth();
+  const { user, profile: authProfile, loading: authLoading } = useAuth();
   const { hideLoading, showLoading } = useGlobalLoading();
   const [isMuted, setIsMuted] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
@@ -40,7 +41,7 @@ export default function QuestionListPage() {
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [currentPage, setCurrentPage] = useState(1)
   const [quizzes, setQuizzes] = useState<any[]>([])
-  const [totalCount, setTotalCount] = useState(0) // NEW: Total count from server
+  const [totalCount, setTotalCount] = useState(0) // Total count from server
   const [loading, setLoading] = useState(true) // Initial load only
   const [isFetching, setIsFetching] = useState(false) // Subtle loading for filter/page changes
   const [currentBgIndex, setCurrentBgIndex] = useState(0)
@@ -48,101 +49,126 @@ export default function QuestionListPage() {
   const [creating, setCreating] = useState(false)
   const [creatingQuizId, setCreatingQuizId] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
-  const [profile, setProfile] = useState<any>(null);
+
+  // States suitable for optimization
+  const [allQuizzesForCategories, setAllQuizzesForCategories] = useState<any[]>([])
   const [favorites, setFavorites] = useState<string[]>([]);
   const [favoritesMode, setFavoritesMode] = useState(false);
   const [myQuizzesMode, setMyQuizzesMode] = useState(false);
-  const [categories, setCategories] = useState<string[]>(["All"]); // NEW: Categories from server
 
   const itemsPerPage = 9;
-  const totalPages = Math.ceil(totalCount / itemsPerPage);
+  const favoritesRef = useRef<string[]>([]);
 
-  // Fetch profile (unchanged)
+  // Sync favorites from authProfile
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user?.id) return;
-      const { data: profileData, error } = await supabase
-        .from('profiles')
-        .select('id, favorite_quiz')
-        .eq('auth_user_id', user.id)
-        .single();
-
-      if (error) {
-        console.error('Error fetching profile:', error);
-      } else {
-        setProfile(profileData);
-        if (profileData?.favorite_quiz) {
-          try {
-            let parsed;
-            if (typeof profileData.favorite_quiz === 'string') {
-              parsed = JSON.parse(profileData.favorite_quiz);
-            } else {
-              parsed = profileData.favorite_quiz;
-            }
-            setFavorites(parsed.favorites || []);
-          } catch (e) {
-            console.error('Error parsing favorites:', e);
-            setFavorites([]);
+    if (authProfile) {
+      try {
+        const anyProfile = authProfile as any;
+        if (anyProfile.favorite_quiz) {
+          let parsed;
+          if (typeof anyProfile.favorite_quiz === 'string') {
+            parsed = JSON.parse(anyProfile.favorite_quiz);
+          } else {
+            parsed = anyProfile.favorite_quiz;
           }
+          setFavorites(parsed.favorites || []);
         } else {
           setFavorites([]);
         }
+      } catch (e) {
+        console.error('Error parsing favorites:', e);
+        setFavorites([]);
       }
-    };
-
-    if (user) {
-      fetchProfile();
     } else {
       setFavorites([]);
-      setProfile(null);
     }
-  }, [user]);
+  }, [authProfile]);
 
-  // Fetch categories once
+  // Keep favoritesRef in sync with favorites state (for RPC usage)
   useEffect(() => {
-    const fetchCategories = async () => {
-      if (!profile?.id) return;
-      const { data, error } = await supabase
-        .from('quizzes')
-        .select('category')
-        .or(`is_public.eq.true,creator_id.eq.${profile.id}`);
+    favoritesRef.current = favorites;
+  }, [favorites]);
 
-      if (!error && data) {
-        const uniqueCats = ["All", ...new Set(data.map(q => q.category).filter(Boolean))];
-        setCategories(uniqueCats);
-      }
-    };
-    fetchCategories();
-  }, [profile?.id]);
+  // Derive categories from all fetched quizzes
+  const categories = useMemo(() => {
+    return [
+      "All",
+      ...new Set(
+        allQuizzesForCategories.map((q) => q.category).filter(Boolean)
+      ),
+    ];
+  }, [allQuizzesForCategories]);
 
-  // NEW: Fetch quizzes with server-side pagination
+  // Reset logic when profile changes
+  useEffect(() => {
+    setAllQuizzesForCategories([]);
+    setCurrentPage(1);
+    setLoading(true);
+  }, [authProfile?.id]);
+
+  // Unified Fetching Logic
   useEffect(() => {
     const fetchQuizzes = async () => {
-      if (!profile?.id) return;
+      // Don't fetch while auth is loading
+      if (authLoading) return;
 
-      setIsFetching(true); // Subtle loading indicator
+      const needsFullFetch = allQuizzesForCategories.length === 0;
+
+      // Check if we are in default view (no search, "All" category, page 1, etc)
+      // If we are, we try to fetch everything (up to a large limit) to populate categories
+      const isDefaultView = !searchQuery && selectedCategory === "All" && !favoritesMode && !myQuizzesMode && currentPage === 1;
+      const shouldUseFullFetch = needsFullFetch && isDefaultView;
+
+      if (needsFullFetch) {
+        // Initial load or refresh
+        setLoading(true); // Shows LoadingRetro
+      } else {
+        setIsFetching(true); // Subtle loading
+      }
+
+      const limit = shouldUseFullFetch ? 1000 : itemsPerPage;
+      const offset = (currentPage - 1) * itemsPerPage;
 
       try {
-        const offset = (currentPage - 1) * itemsPerPage;
-
         const { data, error } = await supabase
           .rpc('get_quizzes_paginated', {
-            p_user_id: profile.id,
+            p_user_id: authProfile?.id || null,
             p_search_query: searchQuery || null,
             p_category_filter: selectedCategory === "All" ? null : selectedCategory,
-            p_favorites_filter: favoritesMode ? favorites : null,
-            p_creator_filter: myQuizzesMode ? profile.id : null,
-            p_limit: itemsPerPage,
+            p_favorites_filter: favoritesMode ? favoritesRef.current : null,
+            p_creator_filter: myQuizzesMode ? authProfile?.id : null,
+            p_limit: limit,
             p_offset: offset
           });
 
         if (error) {
           console.error("Error fetching quizzes:", error);
         } else {
-          setQuizzes(data || []);
-          // Extract total_count from first row
-          if (data && data.length > 0) {
-            setTotalCount(Number(data[0].total_count) || 0);
+          const results = data || [];
+
+          if (shouldUseFullFetch) {
+            setAllQuizzesForCategories(results);
+          }
+
+          // If we fetched the big batch, we slice it for the view.
+          // Note: If we fetched a big batch, the pagination on THIS client update might feel instant, 
+          // but we are using server-side pagination for subsequent strict queries.
+          // However, to keep it simple and consistent with the RPC params:
+          // The RPC returns exactly what we asked for.
+          // If we asked for 1000 items, we got 1000 items. We should slice them for the UI if we want to display properly,
+          // OR we just rely on the fact that if we use the 'paginated' display, we should probably stick to `itemsPerPage` logic.
+          // WAIT: If we request 1000 items, we are effectively bypassing the DB page limit for this request.
+          // In `contoh`, it sets `setPaginatedQuizzes(results.slice(0, quizzesPerPage))` if it was a full fetch.
+
+          if (shouldUseFullFetch) {
+            setQuizzes(results.slice(0, itemsPerPage));
+          } else {
+            setQuizzes(results);
+          }
+
+          // Extract total_count
+          if (results.length > 0) {
+            setTotalCount(Number(results[0].total_count) || 0);
           } else {
             setTotalCount(0);
           }
@@ -157,7 +183,7 @@ export default function QuestionListPage() {
     };
 
     fetchQuizzes();
-  }, [profile?.id, currentPage, searchQuery, selectedCategory, favoritesMode, myQuizzesMode, favorites]);
+  }, [authProfile?.id, authLoading, currentPage, searchQuery, selectedCategory, favoritesMode, myQuizzesMode]); // Removed favorites from dep array to match contoh and prevent double fetch
 
   // Reset page to 1 when filters change
   useEffect(() => {
@@ -165,6 +191,7 @@ export default function QuestionListPage() {
   }, [searchQuery, selectedCategory, favoritesMode, myQuizzesMode]);
 
   const toggleMyQuizzes = () => {
+    if (!authProfile) return;
     setMyQuizzesMode(!myQuizzesMode);
     setSelectedCategory("All");
     setFavoritesMode(false)
@@ -178,27 +205,23 @@ export default function QuestionListPage() {
 
   // Generate pagination numbers with ellipsis
   const getPaginationItems = () => {
+    // Recalculate based on totalCount which is updated from server
+    const totalPages = Math.ceil(totalCount / itemsPerPage);
     const items: (number | string)[] = [];
     const maxVisible = 5;
 
     if (totalPages <= maxVisible + 2) {
-      // Show all pages if total is small
       for (let i = 1; i <= totalPages; i++) items.push(i);
     } else {
-      // Always show first page
       items.push(1);
-
       if (currentPage <= 3) {
-        // Near start: 1 2 3 4 ... last
         for (let i = 2; i <= 4; i++) items.push(i);
         items.push('...');
         items.push(totalPages);
       } else if (currentPage >= totalPages - 2) {
-        // Near end: 1 ... last-3 last-2 last-1 last
         items.push('...');
         for (let i = totalPages - 3; i <= totalPages; i++) items.push(i);
       } else {
-        // Middle: 1 ... curr-1 curr curr+1 ... last
         items.push('...');
         items.push(currentPage - 1);
         items.push(currentPage);
@@ -207,9 +230,11 @@ export default function QuestionListPage() {
         items.push(totalPages);
       }
     }
-
     return items;
   };
+
+  // Recalculate totalPages for render usage
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   // ✅ OPTIMIZED: handleSelectQuiz - parallel insert + optimistic navigation
   async function handleSelectQuiz(quizId: string, router: any) {
@@ -220,7 +245,7 @@ export default function QuestionListPage() {
 
     const gamePin = generateGamePin();
     const sessId = generateXID();
-    const hostId = profile?.id || user?.id;
+    const hostId = authProfile?.id || user?.id;
 
     const primarySession = {
       id: sessId,
@@ -322,7 +347,7 @@ export default function QuestionListPage() {
   // ✅ Toggle Favorite Quiz
   const handleToggleFavorite = async (e: React.MouseEvent, quizId: string) => {
     e.stopPropagation();
-    if (!profile?.id) return;
+    if (!authProfile?.id) return;
 
     const isFavoriting = !favorites.includes(quizId);
     let newFavorites = [...favorites];
@@ -342,7 +367,7 @@ export default function QuestionListPage() {
       const { error: profileError } = await supabase
         .from('profiles')
         .update({ favorite_quiz: favoriteData })
-        .eq('id', profile.id);
+        .eq('id', authProfile.id);
 
       if (profileError) throw profileError;
 
@@ -372,11 +397,11 @@ export default function QuestionListPage() {
 
       // Update the array
       if (isFavoriting) {
-        if (!quizFavorites.includes(profile.id)) {
-          quizFavorites.push(profile.id);
+        if (!quizFavorites.includes(authProfile.id)) {
+          quizFavorites.push(authProfile.id);
         }
       } else {
-        quizFavorites = quizFavorites.filter(id => id !== profile.id);
+        quizFavorites = quizFavorites.filter(id => id !== authProfile.id);
       }
 
       // Save back to quizzes table
@@ -413,7 +438,7 @@ export default function QuestionListPage() {
             backgroundRepeat: 'no-repeat'
           }}
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          animate={{ opacity: 0.5 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 1, ease: "easeInOut" }}
         />
@@ -481,7 +506,7 @@ export default function QuestionListPage() {
               {/* Search */}
               <div className="relative flex-1">
                 <Input
-                  placeholder="Search Quiz..."
+                  placeholder={t('soal.search')}
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                   onKeyDown={(e) => {
@@ -504,12 +529,12 @@ export default function QuestionListPage() {
               {/* Category Select */}
               <Select value={selectedCategory} onValueChange={setSelectedCategory}>
                 <SelectTrigger className="w-full sm:w-40 lg:w-63 bg-[#0a0a0f] border-4 border-[#6a4c93] text-white focus:border-[#00ffff] cursor-pointer focus:ring-0 text-sm sm:text-lg pixel-text glow-cyan-subtle py-3 px-3 sm:px-4 h-auto capitalize">
-                  <SelectValue placeholder="All Categories" className="capitalize" />
+                  <SelectValue placeholder={t('soal.categories')} className="capitalize" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#1a0a2a] border-4 border-[#ff6bff]/50 text-white capitalize">
                   {categories.map((cat) => (
                     <SelectItem key={cat} value={cat} className="pixel-text capitalize cursor-pointer">
-                      {cat}
+                      {cat === 'All' ? t('soal.categories') : t(`soal.categoryNames.${cat}`, { defaultValue: cat })}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -601,7 +626,7 @@ export default function QuestionListPage() {
                           }}
                         >
                           {/* Favorite Button */}
-                          <div className="absolute top-2 right-2 z-20">
+                          <div className={`absolute top-2 z-20 ${i18n.language === 'ar' ? 'left-2' : 'right-2'}`}>
                             <button
                               onClick={(e) => handleToggleFavorite(e, quiz.id)}
                               className="p-1.5 hover:bg-[#1a0a2a]/50 rounded-full transition-all group cursor-pointer"
@@ -628,7 +653,7 @@ export default function QuestionListPage() {
                               <TooltipTrigger asChild>
                                 <div>
                                   <CardHeader>
-                                    <CardTitle className="text-base text-[#00ffff] pixel-text glow-cyan md:line-clamp-3 ">
+                                    <CardTitle className="text-base text-[#00ffff] pixel-text glow-cyan md:line-clamp-3">
                                       {quiz.title}
                                     </CardTitle>
                                   </CardHeader>
@@ -644,7 +669,7 @@ export default function QuestionListPage() {
                           </TooltipProvider>
                           <CardFooter className="flex justify-between items-center">
                             {quiz.category && (
-                              <div className="text-xs text-[#ff6bff] pixel-text glow-pink-subtle capitalize">{quiz.category}</div>
+                              <div className="text-xs text-[#ff6bff] pixel-text glow-pink-subtle capitalize">{t(`soal.categoryNames.${quiz.category}`, { defaultValue: quiz.category })}</div>
                             )}
                             <div className="flex items-center gap-2 text-[#ff6bff] text-sm pixel-text glow-pink-subtle">
                               <HelpCircle className="h-4 w-4" /> {quiz.question_count ?? 0}

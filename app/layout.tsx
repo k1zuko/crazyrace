@@ -41,7 +41,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const pressStart = Press_Start_2P({
   subsets: ['latin'],
-  weight: '400'
+  weight: '400',
+  variable: '--font-pixel',
 })
 
 
@@ -55,9 +56,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preload" as="image" href="/assets/background/1.webp" type="image/webp" fetchPriority="high" />
       </head>
 
-      <body className={pressStart.className}>
+      <body className={pressStart.variable}>
         <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );
 }
+

@@ -1,11 +1,12 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Clock, Hash, Play, Settings } from "lucide-react"
+import { ArrowLeft, Clock, Hash, Play, Settings, Volume2, VolumeX } from "lucide-react"
+import { Switch } from "@/components/ui/switch"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { mysupa, supabase } from "@/lib/supabase"
@@ -78,11 +79,26 @@ export default function SettingsForm({ roomCode, initialData }: Props) {
     const [saving, setSaving] = useState(false)
     const [showCancelDialog, setShowCancelDialog] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
+    const [isMuted, setIsMuted] = useState(true) // Default muted
+    const audioRef = useRef<HTMLAudioElement>(null)
 
     // Hide loading when component mounts (data already fetched server-side)
     useEffect(() => {
         hideLoading();
     }, [hideLoading]);
+
+    // Audio control - play/pause on mute toggle
+    useEffect(() => {
+        const audio = audioRef.current;
+        if (!audio) return;
+        audio.volume = 0.5;
+
+        if (isMuted) {
+            audio.pause();
+        } else {
+            audio.play().catch(() => console.warn("Audio play blocked"));
+        }
+    }, [isMuted]);
 
     // Redirect if error
     useEffect(() => {
@@ -138,6 +154,7 @@ export default function SettingsForm({ roomCode, initialData }: Props) {
         }
 
         localStorage.setItem("hostroomCode", roomCode);
+        localStorage.setItem("settings_muted", isMuted.toString());
         router.push(`/host/${roomCode}/lobby`);
     };
 
@@ -174,8 +191,17 @@ export default function SettingsForm({ roomCode, initialData }: Props) {
                     backgroundRepeat: 'no-repeat'
                 }}
                 initial={{ opacity: 0 }}
-                animate={{ opacity: 0.5 }}
+                animate={{ opacity: 0.25 }}
                 transition={{ duration: 1, ease: "easeInOut" }}
+            />
+
+            {/* Background Music */}
+            <audio
+                ref={audioRef}
+                src="/assets/music/hostroom.mp3"
+                loop
+                preload="auto"
+                className="hidden"
             />
 
             <div className="absolute inset-0 overflow-y-auto z-10">
@@ -218,11 +244,11 @@ export default function SettingsForm({ roomCode, initialData }: Props) {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div className="space-y-2 sm:space-y-3">
-                                        <Label className="text-base sm:text-lg font-semibold flex items-center space-x-2 text-[#00ffff] pixel-text glow-cyan"><Clock className="h-4 w-4" /><span>{t('settings.title')}</span></Label>
+                                        <Label className="text-base sm:text-lg font-semibold flex items-center space-x-2 text-[#00ffff] pixel-text glow-cyan"><Clock className="h-4 w-4" /><span>{t('settings.duration')}</span></Label>
                                         <Select value={duration} onValueChange={setDuration}>
-                                            <SelectTrigger className="text-base sm:text-lg p-3 sm:p-5 bg-[#0a0a0f] border-2 border-[#00ffff]/30 text-white pixel-text focus:border-[#00ffff] w-full transition-all"><SelectValue /></SelectTrigger>
+                                            <SelectTrigger className="text-sm sm:text-base p-3 sm:p-5 bg-[#0a0a0f] border-2 border-[#00ffff]/30 text-white pixel-text focus:border-[#00ffff] w-full transition-all"><SelectValue /></SelectTrigger>
                                             <SelectContent className="bg-[#0a0a0f] border-2 sm:border-4 border-[#6a4c93] text-white pixel-text">
                                                 {Array.from({ length: 6 }, (_, i) => (i + 1) * 5).map((min) => (<SelectItem key={min} value={(min * 60).toString()}>{min} {t('settings.minutes')}</SelectItem>))}
                                             </SelectContent>
@@ -231,11 +257,26 @@ export default function SettingsForm({ roomCode, initialData }: Props) {
                                     <div className="space-y-2 sm:space-y-3">
                                         <Label className="text-base sm:text-lg font-semibold flex items-center space-x-2 text-[#00ffff] pixel-text glow-cyan"><Hash className="h-4 w-4" /><span>{t('settings.questions')}</span></Label>
                                         <Select value={questionCount} onValueChange={setQuestionCount}>
-                                            <SelectTrigger className="text-base sm:text-lg p-3 sm:p-5 bg-[#0a0a0f] border-2 border-[#00ffff]/30 text-white pixel-text focus:border-[#00ffff] w-full transition-all"><SelectValue /></SelectTrigger>
+                                            <SelectTrigger className="text-sm sm:text-base p-3 sm:p-5 bg-[#0a0a0f] border-2 border-[#00ffff]/30 text-white pixel-text focus:border-[#00ffff] w-full transition-all"><SelectValue /></SelectTrigger>
                                             <SelectContent className="bg-[#0a0a0f] border-2 sm:border-4 border-[#6a4c93] text-white pixel-text">
                                                 {questionCountOptions.map((count) => (<SelectItem key={count} value={count.toString()}>{count}</SelectItem>))}
                                             </SelectContent>
                                         </Select>
+                                    </div>
+                                    <div className="space-y-2 sm:space-y-3">
+                                        <Label className="text-base sm:text-lg font-semibold flex items-center space-x-2 text-[#00ffff] pixel-text glow-cyan">
+                                            {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+                                            <span>Sound</span>
+                                        </Label>
+                                        <div className="flex items-center justify-center p-2 sm:p-2.5 space-x-2 bg-[#0a0a0f] border-2 border-[#00ffff]/30 rounded-md w-full">
+                                            <VolumeX className={`h-5 w-5 ${isMuted ? "text-[#ff6bff]" : "text-gray-600"}`} />
+                                            <Switch
+                                                checked={!isMuted}
+                                                onCheckedChange={(checked) => setIsMuted(!checked)}
+                                                className="data-[state=checked]:bg-[#00ffff] data-[state=unchecked]:bg-[#333] border-2 border-[#ff6bff]"
+                                            />
+                                            <Volume2 className={`h-5 w-5 ${!isMuted ? "text-[#00ffff]" : "text-gray-600"}`} />
+                                        </div>
                                     </div>
                                 </div>
 

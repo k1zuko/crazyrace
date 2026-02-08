@@ -5,10 +5,12 @@ import { initReactI18next } from "react-i18next";
 import LanguageDetector from "i18next-browser-languagedetector";
 import enTranslation from "../locales/en/translation.json";
 import idTranslation from "../locales/id/translation.json";
+import arTranslation from "../locales/ar/translation.json";
 
 const resources = {
   en: { translation: enTranslation },
   id: { translation: idTranslation },
+  ar: { translation: arTranslation },
 };
 
 let initialized = false;
@@ -21,7 +23,7 @@ export const getI18nInstance = () => {
       .init({
         resources,
         fallbackLng: "en",
-        supportedLngs: ["en", "id"],
+        supportedLngs: ["en", "id", "ar"],
         interpolation: { escapeValue: false },
         detection: {
           order: ["localStorage", "navigator", "cookie"],

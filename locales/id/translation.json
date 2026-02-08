@@ -120,7 +120,7 @@
    "settings": {
     "title": "Pengaturan",
     "quizTitle": "Kuis Terpilih",
-    "duration": "Menit",
+    "duration": "Durasi",
     "questions": "Jumlah Soal",
     "difficulty": "Tingkat Kesulitan",
     "difficultyOptions": {
@@ -138,7 +138,8 @@
     "language": "Bahasa",
     "languages": {
       "en": "Inggris",
-      "id": "Bahasa Indonesia"
+      "id": "Bahasa Indonesia",
+      "ar": "العربية"
     },
     "loadingSession": "Memuat sesi atau sesi tidak ditemukan...",
     "unknownQuiz": "Kuis Tidak Diketahui",
@@ -165,7 +166,17 @@
     "volume": "Volume",
     "mute": "Senyap",
     "unmute": "Bunyikan",
-    "language": "Bahasa"
+    "language": "Bahasa",
+    "categoryNames": {
+      "language": "Bahasa",
+      "science": "Sains",
+      "technology": "Teknologi",
+      "math": "Matematika",
+      "general": "Umum",
+      "business": "Bisnis",
+      "sports": "Olahraga",
+      "history": "Sejarah"
+    }
   },
     "hostroom": {
     "title": "Ruang Host",
@@ -191,7 +202,8 @@
     "you": "ANDA",
     "languages": {
       "en": "Inggris",
-      "id": "Bahasa Indonesia"
+      "id": "Bahasa Indonesia",
+      "ar": "العربية"
     }
   },
   "monitor":{
@@ -220,6 +232,13 @@
     "correct": "Benar",
     "score": "Skor",
     "time": "Waktu",
-    "accuracy": "Ketepatan"
+    "accuracy": "Ketepatan",
+    "statistics": "Statistik",
+    "waitingForHost": "Menunggu host menyelesaikan game..."
+  },
+  "pwa": {
+    "installTitle": "Install Crazy Race!",
+    "install": "Install",
+    "later": "Nanti"
   }
 }

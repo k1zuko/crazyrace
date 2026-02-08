@@ -138,7 +138,8 @@
     "language": "Language",
     "languages": {
       "en": "English",
-      "id": "Bahasa Indonesia"
+      "id": "Bahasa Indonesia",
+      "ar": "العربية"
     },
     "loadingSession": "Loading session or session not found...",
     "unknownQuiz": "Unknown Quiz",
@@ -165,7 +166,17 @@
     "volume": "Volume",
     "mute": "Mute",
     "unmute": "Unmute",
-    "language": "Language"
+    "language": "Language",
+    "categoryNames": {
+      "language": "Language",
+      "science": "Science",
+      "technology": "Technology",
+      "math": "Math",
+      "general": "General",
+      "business": "Business",
+      "sports": "Sports",
+      "history": "History"
+    }
   },
     "hostroom": {
     "title": "Host Room",
@@ -191,7 +202,8 @@
     "you": "YOU",
     "languages": {
       "en": "English",
-      "id": "Bahasa Indonesia"
+      "id": "Bahasa Indonesia",
+      "ar": "العربية"
     }
   },
   "monitor":{
@@ -220,6 +232,13 @@
     "correct": "Correct",
     "score": "Score",
     "time": "Time",
-    "accuracy": "Accuracy"
+    "accuracy": "Accuracy",
+    "statistics": "Statistics",
+    "waitingForHost": "Waiting for host to finish the game..."
+  },
+  "pwa": {
+    "installTitle": "Install Crazy Race!",
+    "install": "Install",
+    "later": "Later"
   }
 }

@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  Flag,
   Users,
   Menu,
   X,
@@ -21,6 +20,7 @@ import {
   Globe,
   Dices,
   ScanLine,
+  FlagIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
@@ -43,6 +43,7 @@ import {
 import dynamic from "next/dynamic";
 import { usePWAInstall } from "@/contexts/pwaContext";
 import PWAInstallBanner from "@/components/ui/pwa-install-banner";
+import Flag from "react-world-flags";
 
 const Scanner = dynamic(
   () =>
@@ -171,8 +172,9 @@ export default function HomePage() {
     "Lap",
   ];
   const languages = [
-    { code: "en", name: "English", flag: "🇺🇸" },
-    { code: "id", name: "Bahasa Indonesia", flag: "🇮🇩" },
+    { code: "en", name: "English", countryCode: "US" },
+    { code: "id", name: "Bahasa Indonesia", countryCode: "ID" },
+    { code: "ar", name: "العربية", countryCode: "SA" },
   ];
 
   const isInstalled =
@@ -463,7 +465,7 @@ export default function HomePage() {
         className="object-cover fixed -z-10"
         priority
       />
-      <h1 className="absolute top-6 md:top-4 left-4 w-42 md:w-50 lg:w-100">
+      <h1 className="absolute top-6 md:top-4 left-4 w-42 md:w-50 lg:w-auto">
         <Image
           src="/gameforsmart-logo.webp"
           alt="Gameforsmart Logo"
@@ -642,7 +644,7 @@ export default function HomePage() {
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: "auto" }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="overflow-hidden grid grid-cols-2 gap-2"
+                    className="overflow-hidden grid grid-cols-3 gap-2"
                   >
                     {languages.map((lang) => (
                       <motion.button
@@ -651,12 +653,12 @@ export default function HomePage() {
                           handleLanguageSelect(lang.code, lang.name)
                         }
                         whileHover={{ scale: 1.02 }}
-                        className={`flex items-center justify-center p-3 bg-[#1a0a2a]/80 border border-[#00ffff]/30 rounded-lg transition-all duration-200 hover:bg-[#00ffff]/20 hover:border-[#00ffff] ${currentLanguage === lang.code
+                        className={`flex items-center justify-center p-2 bg-[#1a0a2a]/80 border border-[#00ffff]/30 rounded-lg transition-all duration-200 hover:bg-[#00ffff]/20 hover:border-[#00ffff] ${currentLanguage === lang.code
                           ? "border-[#00ffff] bg-[#00ffff]/10"
                           : ""
                           }`}
                       >
-                        <span className="text-3xl">{lang.flag}</span>
+                        <Flag code={lang.countryCode} style={{ width: 40, height: 28, objectFit: 'cover', borderRadius: 4 }} />
                       </motion.button>
                     ))}
                   </motion.div>
@@ -813,7 +815,7 @@ export default function HomePage() {
                   className="w-16 h-16 bg-gradient-to-br from-[#00ffff] to-[#120512] border-2 border-white rounded-xl flex items-center justify-center mx-auto mb-4 group-hover:shadow-[0_0_15px_rgba(255,107,255,0.7)] transition-all duration-300"
                   whileHover={{ rotate: 5 }}
                 >
-                  <Flag className="w-8 h-8 text-white" />
+                  <FlagIcon className="w-8 h-8 text-white" />
                 </motion.div>
                 <CardTitle className="text-base md:text-xl font-bold text-[#00ffff] pixel-text glow-pink">
                   {t("hostGame.title")}

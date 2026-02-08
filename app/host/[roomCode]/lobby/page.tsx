@@ -86,6 +86,12 @@ export default function HostRoomPage() {
 
   useEffect(() => {
     syncServerTime();
+
+    // Load mute setting
+    const savedMuted = localStorage.getItem("settings_muted");
+    if (savedMuted !== null) {
+      setIsMuted(savedMuted === "true");
+    }
   }, []);
 
   const calculateCountdown = (
@@ -188,17 +194,29 @@ export default function HostRoomPage() {
   }, [hasMore, isLoadingMore, loadMore]);
 
   // Audio control - only play/pause on mute toggle, no autoplay
+  // Audio control - play/pause on mute toggle or when loading finishes
   useEffect(() => {
+    if (loading) return; // Wait for audio element
     const audio = audioRef.current;
     if (!audio) return;
     audio.volume = 0.5; // Default 50% volume
 
+    // Autoplay policy workarounds
+    const playAudio = async () => {
+      try {
+        await audio.play();
+        setHasInteracted(true); // If successful, we have interaction/permission
+      } catch (err) {
+        console.warn("Audio play blocked (requiring interaction):", err);
+      }
+    };
+
     if (isMuted) {
       audio.pause();
     } else {
-      audio.play().catch(() => console.warn("Audio play blocked"));
+      playAudio();
     }
-  }, [isMuted]);
+  }, [isMuted, loading]);
 
   useEffect(() => {
     const countdownAudio = countdownAudioRef.current;
@@ -474,7 +492,10 @@ export default function HostRoomPage() {
   if (loading) return <LoadingRetro />;
 
   return (
-    <div className="h-screen bg-[#1a0a2a] relative overflow-hidden">
+    <div
+      className="h-screen bg-[#1a0a2a] relative overflow-hidden"
+      onClick={() => setHasInteracted(true)}
+    >
       <audio
         ref={audioRef}
         src="/assets/music/hostroom.mp3"
@@ -493,7 +514,7 @@ export default function HostRoomPage() {
             backgroundRepeat: 'no-repeat'
           }}
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          animate={{ opacity: 0.5 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 1, ease: "easeInOut" }}
         />
