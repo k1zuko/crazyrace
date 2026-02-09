@@ -190,7 +190,9 @@
     "sound": "الصوت",
     "volume": "مستوى الصوت",
     "mute": "كتم",
-    "unmute": "إلغاء الكتم"
+    "unmute": "إلغاء الكتم",
+    "loadingMore": "جارٍ تحميل المزيد...",
+    "playerCount": "{{count}} لاعب"
   },
   "lobby": {
     "title": "غرفة الانتظار",

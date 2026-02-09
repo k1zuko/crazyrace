@@ -190,7 +190,10 @@
     "sound": "Sound",
     "volume": "Volume",
     "mute": "Mute",
-    "unmute": "Unmute"
+    "unmute": "Unmute",
+    "loadingMore": "Loading more...",
+    "playerCount": "{{count}} Player",
+    "playerCount_plural": "{{count}} Players"
   },
     "lobby": {
     "title": "Waiting Room",

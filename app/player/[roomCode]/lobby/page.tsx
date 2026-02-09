@@ -613,7 +613,7 @@ export default function LobbyPage() {
                           </div>
                           {player.id === currentPlayer.id && (
                             <Badge className="bg-transparent text-[#00ffff] border-[#00ffff]/70 text-xs pixel-text glow-cyan-subtle">
-                              YOU
+                              {t('lobby.you')}
                             </Badge>
                           )}
                         </div>
@@ -630,7 +630,7 @@ export default function LobbyPage() {
               <ArrowLeft />
             </Button>
             <Button className="bg-[#ff6bff] border-2 border-white pixel-button-large hover:bg-[#ff8aff] glow-pink px-8 py-3" onClick={() => setShowCarDialog(true)}>
-              <span className="pixel-text text-lg">CHOOSE CAR</span>
+              <span className="pixel-text text-lg">{t('lobby.chooseCar')}</span>
             </Button>
           </div>
         </div>
@@ -665,7 +665,7 @@ export default function LobbyPage() {
         <DialogOverlay className="bg-[#8B00FF]/60 backdrop-blur-sm" />
         <DialogContent className="bg-[#1a0a2a]/90 border-[#ff6bff]/50 backdrop-blur-sm sm:max-w-md sm:h-auto overflow-auto p-0">
           <DialogHeader className="pt-4 pb-2 px-4">
-            <DialogTitle className="text-[#00ffff] pixel-text glow-cyan text-center text-xl">Choose Car</DialogTitle>
+            <DialogTitle className="text-[#00ffff] pixel-text glow-cyan text-center text-xl">{t('lobby.chooseCar')}</DialogTitle>
           </DialogHeader>
           <div className="px-4 pb-4 grid grid-cols-2 md:grid-cols-3 gap-4 overflow-y-auto">
             {availableCars.map((car) => (

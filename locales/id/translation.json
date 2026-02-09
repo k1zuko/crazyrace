@@ -190,7 +190,9 @@
     "volume": "Volume",
     "mute": "Senyap",
     "unmute": "Bunyikan",
-    "language": "Bahasa"
+    "language": "Bahasa",
+    "loadingMore": "Memuat lagi...",
+    "playerCount": "{{count}} Pemain"
   },
    "lobby": {
     "title": "Ruang Tunggu",
