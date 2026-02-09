@@ -1,18 +1,16 @@
 "use client"
 import { AnimatePresence, motion } from "framer-motion";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 export default function LoadingRetroScreen({ progress = 0 }: { progress?: number }) {
+  const { t } = useTranslation();
+
   const backgroundGifs = [
     "/assets/background/host/10.webp",
   ];
 
-  const tips = [
-    "Loading assets....",
-    "Let it be slow but safe",
-    "Loading depends on the internet",
-    "Enjoy the race...",
-  ];
+  const tips = t("loading.tips", { returnObjects: true }) as string[];
 
   const [currentBgIndex, setCurrentBgIndex] = useState(0);
   const [currentTipIndex, setCurrentTipIndex] = useState(0);
@@ -74,7 +72,7 @@ export default function LoadingRetroScreen({ progress = 0 }: { progress?: number
               transition={{ repeat: Infinity, duration: 1.2 }}
               className="text-3xl text-[#00ffff] pixel-text glow-cyan mb-4 uppercase tracking-wider"
             >
-              Loading
+              {t("loading.title")}
             </motion.p>
 
             {/* Progress Percentage */}
@@ -235,7 +233,7 @@ export default function LoadingRetroScreen({ progress = 0 }: { progress?: number
           50% { text-shadow: 0 0 8px #ff6bff, 2px 2px 0 #000; }
         }
       `}</style>
-      
+
     </>
   )
 }

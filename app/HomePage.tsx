@@ -268,7 +268,8 @@ export default function HomePage() {
   const handleLanguageSelect = (code: string, name: string) => {
     i18n.changeLanguage(code);
     setCurrentLanguage(code);
-    localStorage.setItem("language", code);
+    // Save to cookie (expires in 1 year) - survives localStorage.clear() on logout
+    document.cookie = `i18next=${code}; path=/; max-age=31536000; SameSite=Lax`;
     setShowLanguageMenu(false);
   };
 

@@ -26,8 +26,9 @@ export const getI18nInstance = () => {
         supportedLngs: ["en", "id", "ar"],
         interpolation: { escapeValue: false },
         detection: {
-          order: ["localStorage", "navigator", "cookie"],
-          caches: ["localStorage", "cookie"],
+          order: ["cookie", "localStorage", "navigator"],
+          caches: ["cookie"],
+          cookieMinutes: 525600, // 1 year
         },
       });
     initialized = true;

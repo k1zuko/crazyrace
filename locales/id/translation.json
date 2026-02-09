@@ -240,5 +240,14 @@
     "installTitle": "Install Crazy Race!",
     "install": "Install",
     "later": "Nanti"
+  },
+  "loading": {
+    "title": "Memuat",
+    "tips": [
+      "Memuat aset...",
+      "Lebih lambat tapi aman",
+      "Kecepatan tergantung internet",
+      "Nikmati balapannya..."
+    ]
   }
 }

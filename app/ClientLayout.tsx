@@ -16,10 +16,13 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   const [isClient, setIsClient] = useState(false);
   const [currentLang, setCurrentLang] = useState(i18n.language);
 
-  // ✅ FIX: Pisahkan effect untuk initial setup (run once)
+  // ✅ FIX: Read saved language from cookie (survives localStorage.clear on logout)
   useEffect(() => {
     setIsClient(true);
-    const savedLang = localStorage.getItem("language");
+    // Read i18next cookie
+    const cookies = document.cookie.split(';');
+    const i18nextCookie = cookies.find(c => c.trim().startsWith('i18next='));
+    const savedLang = i18nextCookie?.split('=')[1]?.trim();
     if (savedLang && i18n.language !== savedLang && typeof i18n.changeLanguage === "function") {
       i18n.changeLanguage(savedLang);
     }
