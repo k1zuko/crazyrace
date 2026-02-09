@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, ReactNode } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 
 interface GlobalLoadingContextType {
     isLoading: boolean;
@@ -12,6 +13,7 @@ interface GlobalLoadingContextType {
 const GlobalLoadingContext = createContext<GlobalLoadingContextType | null>(null);
 
 export function GlobalLoadingProvider({ children }: { children: ReactNode }) {
+    const { t } = useTranslation();
     const [isLoading, setIsLoading] = useState(false);
 
     const showLoading = () => setIsLoading(true);
@@ -42,7 +44,7 @@ export function GlobalLoadingProvider({ children }: { children: ReactNode }) {
                                 className="text-2xl md:text-4xl text-[#00ffff]"
                                 style={{ textShadow: '2px 2px 0px #000', filter: 'drop-shadow(0 0 10px #00ffff)' }}
                             >
-                                LOADING...
+                                {t("loading.title")}...
                             </motion.p>
                             {/* Pixelated Loading Bar */}
                             <div className="mt-6 flex gap-1 justify-center">

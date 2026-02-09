@@ -266,7 +266,7 @@ export default function SettingsForm({ roomCode, initialData }: Props) {
                                     <div className="space-y-2 sm:space-y-3">
                                         <Label className="text-base sm:text-lg font-semibold flex items-center space-x-2 text-[#00ffff] pixel-text glow-cyan">
                                             {isMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-                                            <span>Sound</span>
+                                            <span>{t('settings.sound')}</span>
                                         </Label>
                                         <div className="flex items-center justify-center p-2 sm:p-2.5 space-x-2 bg-[#0a0a0f] border-2 border-[#00ffff]/30 rounded-md w-full">
                                             <VolumeX className={`h-5 w-5 ${isMuted ? "text-[#ff6bff]" : "text-gray-600"}`} />

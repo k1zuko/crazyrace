@@ -651,7 +651,7 @@ export default function HostRoomPage() {
             <Card className="bg-[#1a0a2a]/60 border-2 sm:border-3 border-[#ff6bff]/50 pixel-card glow-pink-subtle p-4 sm:p-6 md:p-8 lg:col-span-3 order-1 lg:order-2">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 sm:mb-6 gap-3 sm:gap-0">
                 <h2 className="text-xl sm:text-2xl font-bold text-[#00ffff] pixel-text glow-cyan text-center sm:text-left">
-                  {totalCount} Player{totalCount <= 1 ? "" : "s"}
+                  {t('hostroom.playerCount', { count: totalCount })}
                 </h2>
               </div>
               <div className="space-y-4">
@@ -712,7 +712,7 @@ export default function HostRoomPage() {
                 {/* Infinite Scroll Loader */}
                 {hasMore && participants.length < totalCount && (
                   <div ref={loaderRef} className="flex justify-center items-center py-4">
-                    <span className="text-[#00ffff] text-sm pixel-text">Loading more...</span>
+                    <span className="text-[#00ffff] text-sm pixel-text">{t('hostroom.loadingMore')}</span>
                   </div>
                 )}
               </div>

@@ -190,7 +190,10 @@
     "sound": "Sound",
     "volume": "Volume",
     "mute": "Mute",
-    "unmute": "Unmute"
+    "unmute": "Unmute",
+    "loadingMore": "Loading more...",
+    "playerCount": "{{count}} Player",
+    "playerCount_plural": "{{count}} Players"
   },
     "lobby": {
     "title": "Waiting Room",
@@ -240,5 +243,14 @@
     "installTitle": "Install Crazy Race!",
     "install": "Install",
     "later": "Later"
+  },
+  "loading": {
+    "title": "Loading",
+    "tips": [
+      "Loading assets...",
+      "Let it be slow but safe",
+      "Loading depends on the internet",
+      "Enjoy the race..."
+    ]
   }
 }

@@ -321,9 +321,36 @@ export default function QuizGamePage() {
     };
   }, [zoomedImage]);
 
+  // Helper function to create seeded random for consistent shuffle per player
+  const seededRandom = (seed: string) => {
+    // Simple hash function to convert string to number
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+      const char = seed.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32bit integer
+    }
+    // Linear congruential generator for random numbers
+    return () => {
+      hash = (hash * 1103515245 + 12345) & 0x7fffffff;
+      return hash / 0x7fffffff;
+    };
+  };
+
+  // Shuffle array using seeded random (consistent per participant)
+  const seededShuffle = <T,>(array: T[], seed: string): T[] => {
+    const shuffled = [...array];
+    const random = seededRandom(seed);
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    return shuffled;
+  };
+
   // Helper function to parse questions from DB or Cache
   const parseQuizQuestions = (rawQuestions: any[]): QuizQuestion[] => {
-    return rawQuestions.map((q: any) => ({
+    const parsed = rawQuestions.map((q: any) => ({
       id: q.id,
       question: q.question,
       image: q.image || null,
@@ -335,6 +362,13 @@ export default function QuizGamePage() {
         : [],
       // options: Keeping types consistent by using 'answers' instead
     }));
+
+    // ✅ Shuffle questions per player using participantId as seed
+    // This ensures each player gets different order but consistent on reload
+    if (participantId) {
+      return seededShuffle(parsed, participantId);
+    }
+    return parsed;
   };
 
   useEffect(() => {

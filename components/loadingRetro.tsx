@@ -1,7 +1,10 @@
 "use client"
 import { AnimatePresence, motion } from "framer-motion";
+import { useTranslation } from "react-i18next";
 
 export default function LoadingRetro() {
+  const { t } = useTranslation();
+
   return (
     <>
       <AnimatePresence>
@@ -18,7 +21,7 @@ export default function LoadingRetro() {
               transition={{ repeat: Infinity, duration: 0.8 }}
               className="text-2xl md:text-4xl text-[#00ffff] pixel-text glow-cyan"
             >
-              LOADING...
+              {t("loading.title")}...
             </motion.p>
             {/* Pixelated Loading Bar */}
             <div className="mt-6 flex gap-1 justify-center">
@@ -40,7 +43,7 @@ export default function LoadingRetro() {
             </div>
           </div>
         </motion.div>
-      </AnimatePresence>
+      </AnimatePresence >
 
       <style jsx>{`.pixel-border-large {
           border: 4px solid #00ffff;

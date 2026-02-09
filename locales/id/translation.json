@@ -190,7 +190,9 @@
     "volume": "Volume",
     "mute": "Senyap",
     "unmute": "Bunyikan",
-    "language": "Bahasa"
+    "language": "Bahasa",
+    "loadingMore": "Memuat lagi...",
+    "playerCount": "{{count}} Pemain"
   },
    "lobby": {
     "title": "Ruang Tunggu",
@@ -240,5 +242,14 @@
     "installTitle": "Install Crazy Race!",
     "install": "Install",
     "later": "Nanti"
+  },
+  "loading": {
+    "title": "Memuat",
+    "tips": [
+      "Memuat aset...",
+      "Lebih lambat tapi aman",
+      "Kecepatan tergantung internet",
+      "Nikmati balapannya..."
+    ]
   }
 }
