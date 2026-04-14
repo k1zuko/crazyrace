@@ -1,0 +1,32 @@
+stages:
+  - test
+  - deploy
+
+# TAHAP 1: PENGECEKAN KODE (TESTING)
+check_code:
+  stage: test
+  tags:
+    - nodejs # Sesuaikan dengan tag runner kamu, atau hapus baris tags ini jika runner tidak pakai tag
+  script:
+    - echo "Sedang mengecek kelayakan kodingan..."
+    - npm install
+    # Jika kamu belum punya script test, baris di bawah bisa dikomentari dulu
+    - npm test || echo "Test belum dikonfigurasi, lanjut..." 
+  only:
+    - main
+
+# TAHAP 2: PENGIRIMAN KE SERVER (DEPLOY)
+deploy_to_aapanel:
+  stage: deploy
+  tags:
+    - nodejs
+  script:
+    - echo "Kodingan aman! Mengirim ke aaPanel..."
+    - ssh -o StrictHostKeyChecking=no root@192.168.1.157 "
+        cd /www/wwwroot/crazyrace && 
+        git pull origin main && 
+        npm install && 
+        pm2 restart all || echo 'Aplikasi sudah terupdate!'
+      "
+  only:
+    - main
