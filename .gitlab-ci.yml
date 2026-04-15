@@ -1,29 +1,25 @@
 stages:
-  - test
-  - deploy
+  - build_and_deploy
 
-check_code:
-  stage: test
+deploy_proyek:
+  stage: build_and_deploy
   tags:
     - nodejs
   script:
-    - echo "Sedang mengecek kelayakan kodingan..."
-    - npm install
-    - npm test || echo "Test belum dikonfigurasi, lanjut..." 
-  only:
-    - main
-
-deploy_to_aapanel:
-  stage: deploy
-  tags:
-    - nodejs
-  script:
-    - echo "Kodingan aman! Mengirim langsung ke aaPanel tanpa Git Pull..."
-    - rsync -avz --delete --exclude '.git' --exclude 'node_modules' ./ root@192.168.1.157:/www/wwwroot/crazyrace/
+    - echo "🚀 Deploy bersih sebagai user www..."
+    - npm ci --prefer-offline
+    - npm run build
+    
+    # 1. Kirim file
+    - rsync -az --delete --exclude '.git' --exclude 'node_modules' ./ root@192.168.1.157:/www/wwwroot/crazyrace/
+    
+    # 2. Perbaiki Permission & Restart via sudo -u www
     - ssh -o StrictHostKeyChecking=no root@192.168.1.157 "
+        chown -R www:www /www/wwwroot/crazyrace && 
         cd /www/wwwroot/crazyrace && 
-        npm install && 
-        pm2 startOrReload ecosystem.config.js && echo 'Aplikasi berhasil di-update dan di-reload!'
+        sudo -u www npm install --production --no-audit && 
+        sudo -u www pm2 startOrReload ecosystem.config.js --update-env &&
+        echo '✅ Deploy Berhasil via User www!'
       "
   only:
     - main
