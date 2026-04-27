@@ -6,12 +6,12 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { motion, AnimatePresence } from "framer-motion"
 import { useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase"
 import { useAuth } from "@/contexts/authContext"
 import { FcGoogle } from 'react-icons/fc';
 import { FaHandPointRight } from 'react-icons/fa';
 import { useTranslation } from "react-i18next"
 import Image from "next/image"
+import { createGFSClient } from "@/lib/supabase/gfs-client"
 
 // Background GIFs - Sesuai tema retro neon, optimized for mobile (smaller files if possible)
 const backgroundGifs = [
@@ -19,6 +19,7 @@ const backgroundGifs = [
 ]
 
 export default function LoginPage() {
+  const supabase = createGFSClient()
   const router = useRouter()
   const { user, profile, loading } = useAuth()
   const { t } = useTranslation()

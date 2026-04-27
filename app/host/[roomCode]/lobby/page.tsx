@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { mysupa, supabase } from "@/lib/supabase";
 import QRCode from "react-qr-code";
 import { Dialog, DialogContent, DialogOverlay } from "@/components/ui/dialog";
 import LoadingRetro from "@/components/loadingRetro";
@@ -27,6 +26,7 @@ import { syncServerTime, getSyncedServerTime } from "@/utils/serverTime";
 import { useTranslation } from "react-i18next";
 import { t } from "i18next";
 import { useHostGuard } from "@/lib/host-guard";
+import { supabaseGame } from "@/lib/supabase/game-client";
 
 const APP_NAME = "crazyrace"; // Safety check for multi-tenant DB
 
@@ -127,7 +127,7 @@ export default function HostRoomPage() {
           setCountdown(0);
 
           setTimeout(async () => {
-            const { error } = await mysupa
+            const { error } = await supabaseGame
               .from("sessions")
               .update({
                 status: "active",
@@ -157,7 +157,7 @@ export default function HostRoomPage() {
     if (!session?.id || !cursor || isLoadingMore || !hasMore) return;
 
     setIsLoadingMore(true);
-    const { data: more } = await mysupa
+    const { data: more } = await supabaseGame
       .from("participants")
       .select("id, nickname, car, joined_at")
       .eq("session_id", session.id)
@@ -264,7 +264,7 @@ export default function HostRoomPage() {
     let sessionSubscription: any = null;
 
     const fetchSessionAndParticipants = async () => {
-      const { data: sessionData, error } = await mysupa
+      const { data: sessionData, error } = await supabaseGame
         .from("sessions")
         .select("id, status, countdown_started_at")
         .eq("game_pin", roomCode)
@@ -282,7 +282,7 @@ export default function HostRoomPage() {
       hideLoading();
 
       // ⭐ FIRST FETCH PARTICIPANTS (cursor-based)
-      const { data: fetchedParticipants, error: pErr, count } = await mysupa
+      const { data: fetchedParticipants, error: pErr, count } = await supabaseGame
         .from("participants")
         .select("id, nickname, car, joined_at", { count: "exact" })
         .eq("session_id", sessionData.id)
@@ -312,7 +312,7 @@ export default function HostRoomPage() {
       }
 
       // 🔥 Subscribe realtime session changes
-      sessionSubscription = mysupa
+      sessionSubscription = supabaseGame
         .channel(`session:${roomCode}`)
         .on(
           "postgres_changes",
@@ -348,14 +348,14 @@ export default function HostRoomPage() {
 
     return () => {
       stopCountdownSync();
-      if (sessionSubscription) mysupa.removeChannel(sessionSubscription);
+      if (sessionSubscription) supabaseGame.removeChannel(sessionSubscription);
     };
   }, [roomCode, router, startCountdownSync, stopCountdownSync]);
 
   useEffect(() => {
     if (!session?.id) return;
 
-    const channel = mysupa
+    const channel = supabaseGame
       .channel(`participants:${roomCode}`)
       .on(
         "postgres_changes",
@@ -395,7 +395,7 @@ export default function HostRoomPage() {
 
     // Cleanup
     return () => {
-      mysupa.removeChannel(channel);
+      supabaseGame.removeChannel(channel);
     };
   }, [session?.id, roomCode]);
 
@@ -420,7 +420,7 @@ export default function HostRoomPage() {
   const startGame = async () => {
     const countdownTime = new Date(getSyncedServerTime()).toISOString();
 
-    const { error } = await mysupa
+    const { error } = await supabaseGame
       .from("sessions")
       .update({
         countdown_started_at: countdownTime,
@@ -435,20 +435,20 @@ export default function HostRoomPage() {
     setGameStarted(true);
 
     // 🚀 Broadcast to all players for instant countdown sync
-    const broadcastChannel = mysupa.channel(`room:${roomCode}`);
+    const broadcastChannel = supabaseGame.channel(`room:${roomCode}`);
     await broadcastChannel.subscribe();
     await broadcastChannel.send({
       type: 'broadcast',
       event: 'countdown_start',
       payload: { countdown_started_at: countdownTime }
     });
-    mysupa.removeChannel(broadcastChannel);
+    supabaseGame.removeChannel(broadcastChannel);
   };
 
   const confirmKick = async () => {
     if (!selectedPlayerId || !session) return;
 
-    const { error } = await mysupa
+    const { error } = await supabaseGame
       .from("participants")
       .delete()
       .eq("id", selectedPlayerId)

@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, ArrowLeft, HelpCircle, Heart, User } from "lucide-react"
 import { useEffect, useState, useRef, useMemo } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { mysupa, supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import LoadingRetro from "@/components/loadingRetro"
 import { useGlobalLoading } from "@/contexts/globalLoadingContext"
@@ -18,6 +17,8 @@ import { useTranslation } from "react-i18next"
 import i18n from "i18next"
 import { t } from "i18next"
 import { generateXID } from "@/lib/id-generator"
+import { createGFSClient } from "@/lib/supabase/gfs-client"
+import { supabaseGame } from "@/lib/supabase/game-client"
 
 // List of background GIFs in filename order
 const backgroundGifs = [
@@ -32,6 +33,7 @@ export function generateGamePin(length = 6) {
 
 
 export default function QuestionListPage() {
+  const supabase = createGFSClient()
   const router = useRouter()
   const { user, profile: authProfile, loading: authLoading } = useAuth();
   const { hideLoading, showLoading } = useGlobalLoading();
@@ -273,7 +275,7 @@ export default function QuestionListPage() {
         supabase
           .from("game_sessions")
           .insert(newMainSession),
-        mysupa
+        supabaseGame
           .from("sessions")
           .insert(primarySession)
       ]);
@@ -283,9 +285,9 @@ export default function QuestionListPage() {
 
       if (mainError) {
         console.error("Error creating session (main):", mainError);
-        // Rollback mysupa jika berhasil
+        // Rollback supabaseGame jika berhasil
         if (!gameError) {
-          await mysupa.from("sessions").delete().eq("id", sessId);
+          await supabaseGame.from("sessions").delete().eq("id", sessId);
         }
         setCreating(false);
         setCreatingQuizId(null);
@@ -294,7 +296,7 @@ export default function QuestionListPage() {
       }
 
       if (gameError) {
-        console.error("Error creating session (mysupa):", gameError);
+        console.error("Error creating session (supabaseGame):", gameError);
         // Rollback supabase utama
         await supabase.from("game_sessions").delete().eq("id", sessId);
         setCreating(false);

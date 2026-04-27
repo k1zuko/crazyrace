@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { mysupa } from "@/lib/supabase";
 import { Play, Trash2, StopCircle } from "lucide-react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
@@ -25,6 +24,7 @@ const CAR_OPTIONS = ["purple", "white", "black", "aqua", "blue"];
 
 // Import Indonesian names from JSON (more efficient, easier to maintain)
 import indonesianNames from "@/data/indonesian-names.json";
+import { supabaseGame } from "@/lib/supabase/game-client";
 
 // Helper to pick random from array
 const pickRandom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
@@ -135,7 +135,7 @@ export default function TestPage() {
 
     // Fetch session
     const fetchSession = async (code: string): Promise<SessionData | null> => {
-        const { data, error } = await mysupa
+        const { data, error } = await supabaseGame
             .from("sessions")
             .select("id, status, total_time_minutes, current_questions")
             .eq("game_pin", code)
@@ -150,7 +150,7 @@ export default function TestPage() {
 
     // Subscribe to session changes (detect game start/end)
     const subscribeToSession = (sessionId: string) => {
-        sessionChannelRef.current = mysupa
+        sessionChannelRef.current = supabaseGame
             .channel(`test-session-${sessionId}`)
             .on(
                 "postgres_changes",
@@ -241,7 +241,7 @@ export default function TestPage() {
     const stopTest = () => {
         stopRef.current = true;
         if (sessionChannelRef.current) {
-            mysupa.removeChannel(sessionChannelRef.current);
+            supabaseGame.removeChannel(sessionChannelRef.current);
         }
         addLog("⛔ Test stopped");
         setIsRunning(false);
@@ -253,7 +253,7 @@ export default function TestPage() {
         addLog("🧹 Cleaning up bots...");
 
         // Delete all participants in this session
-        await mysupa
+        await supabaseGame
             .from("participants")
             .delete()
             .eq("session_id", session.id);

@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge"
 import { Users, ArrowLeft } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { mysupa, supabase } from "@/lib/supabase"
 import LoadingRetro from "@/components/loadingRetro"
 import { useGlobalLoading } from "@/contexts/globalLoadingContext"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogOverlay, DialogTitle } from "@/components/ui/dialog"
@@ -16,6 +15,7 @@ import Image from "next/image"
 import { breakOnCaps } from "@/utils/game"
 import { getSyncedServerTime, syncServerTime } from "@/utils/serverTime"
 import { t } from "i18next"
+import { supabaseGame } from "@/lib/supabase/game-client"
 
 // Background GIFs
 const backgroundGifs = [
@@ -198,7 +198,7 @@ export default function LobbyPage() {
       const participantId = localStorage.getItem("participantId") || "";
 
       // 1. Fetch session dengan current_questions
-      const { data: sess, error: sessError } = await mysupa
+      const { data: sess, error: sessError } = await supabaseGame
         .from("sessions")
         .select("id, status, started_at, total_time_minutes, current_questions, difficulty")
         .eq("game_pin", roomCode)
@@ -218,7 +218,7 @@ export default function LobbyPage() {
       }));
 
       // 3. Fetch participant state
-      const { data: participant } = await mysupa
+      const { data: participant } = await supabaseGame
         .from("participants")
         .select("answers, completion, current_question")
         .eq("id", participantId)
@@ -264,7 +264,7 @@ export default function LobbyPage() {
   const handleExit = async () => {
     if (!currentPlayer.id || !session) return;
 
-    const { error } = await mysupa
+    const { error } = await supabaseGame
       .from("participants")
       .delete()
       .eq("id", currentPlayer.id);
@@ -288,7 +288,7 @@ export default function LobbyPage() {
     setParticipants(prev => prev.map(p => p.id === currentPlayer.id ? { ...p, car: selectedCar } : p));
     setShowCarDialog(false);
 
-    const { error } = await mysupa
+    const { error } = await supabaseGame
       .from('participants')
       .update({ car: selectedCar })
       .eq('id', currentPlayer.id);
@@ -310,7 +310,7 @@ export default function LobbyPage() {
       setLoading(true);
 
       // Fetch session dari gameplay supabase (include difficulty)
-      const { data: fetchedSession, error: sessionErr } = await mysupa
+      const { data: fetchedSession, error: sessionErr } = await supabaseGame
         .from("sessions")
         .select("id, status, countdown_started_at, started_at, ended_at, difficulty")
         .eq("game_pin", roomCode)
@@ -337,7 +337,7 @@ export default function LobbyPage() {
       }
 
       // Fetch ALL participants (no pagination - standard SELECT *)
-      const { data: fetchedParticipants, count } = await mysupa
+      const { data: fetchedParticipants, count } = await supabaseGame
         .from("participants")
         .select("*", { count: "exact" })
         .eq("session_id", fetchedSession.id)
@@ -361,7 +361,7 @@ export default function LobbyPage() {
       setCurrentPlayer({ id: me.id, nickname: me.nickname, car: me.car || "blue" });
 
       // Realtime listener hanya pada sessions table
-      sessionChannel = mysupa
+      sessionChannel = supabaseGame
         .channel(`session:${roomCode}`)
         .on(
           "postgres_changes",
@@ -398,7 +398,7 @@ export default function LobbyPage() {
 
     return () => {
       stopCountdownSync();
-      if (sessionChannel) mysupa.removeChannel(sessionChannel);
+      if (sessionChannel) supabaseGame.removeChannel(sessionChannel);
     };
   }, [roomCode, router, startCountdownSync, stopCountdownSync, hideLoading]);
 
@@ -406,7 +406,7 @@ export default function LobbyPage() {
   useEffect(() => {
     if (!roomCode) return;
 
-    const broadcastChannel = mysupa.channel(`room:${roomCode}`)
+    const broadcastChannel = supabaseGame.channel(`room:${roomCode}`)
       .on('broadcast', { event: 'countdown_start' }, (payload) => {
         console.log("⚡ Broadcast countdown received:", payload);
         const startTime = payload.payload?.countdown_started_at;
@@ -420,7 +420,7 @@ export default function LobbyPage() {
       .subscribe();
 
     return () => {
-      mysupa.removeChannel(broadcastChannel);
+      supabaseGame.removeChannel(broadcastChannel);
     };
   }, [roomCode, startCountdownSync, countdown, session?.difficulty, preloadMinigameAssets, prefetchGameData]);
 
@@ -429,7 +429,7 @@ export default function LobbyPage() {
     if (!roomCode || !session?.id || countdown > 0 || gamePhase === 'active') return;
 
     const pollInterval = setInterval(async () => {
-      const { data } = await mysupa
+      const { data } = await supabaseGame
         .from("sessions")
         .select("countdown_started_at, status")
         .eq("game_pin", roomCode)
@@ -454,7 +454,7 @@ export default function LobbyPage() {
   useEffect(() => {
     if (!session?.id) return;
 
-    const channel = mysupa
+    const channel = supabaseGame
       .channel(`participants:${roomCode}`)
       .on(
         "postgres_changes",
@@ -504,7 +504,7 @@ export default function LobbyPage() {
 
     // Cleanup
     return () => {
-      mysupa.removeChannel(channel);
+      supabaseGame.removeChannel(channel);
     };
   }, [session?.id, roomCode, router, showLoading]);
 

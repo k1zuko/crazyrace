@@ -6,12 +6,12 @@ import { Card } from "@/components/ui/card"
 import { Home, BarChart3 } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { mysupa, supabase } from "@/lib/supabase"
 import LoadingRetro from "@/components/loadingRetro"
 import { useGlobalLoading } from "@/contexts/globalLoadingContext"
 import { breakOnCaps } from "@/utils/game"
 import Image from "next/image"
 import { t } from "i18next"
+import { supabaseGame } from "@/lib/supabase/game-client"
 
 
 // Background GIFs
@@ -74,8 +74,8 @@ export default function PlayerResultsPage() {
         setLoading(true);
         setError(null);
 
-        // 1. Ambil session dari mysupa (cuma buat ambil total soal & waktu & status)
-        const { data: sess, error: sessErr } = await mysupa
+        // 1. Ambil session dari supabaseGame (cuma buat ambil total soal & waktu & status)
+        const { data: sess, error: sessErr } = await supabaseGame
           .from("sessions")
           .select("id, question_limit, total_time_minutes, current_questions, status")
           .eq("game_pin", roomCode)
@@ -90,8 +90,8 @@ export default function PlayerResultsPage() {
         const totalQuestions = sess.question_limit || (sess.current_questions || []).length;
         const gameDuration = (sess.total_time_minutes || 5) * 60;
 
-        // 2. Ambil data player dari mysupa.participants
-        const { data: participant, error: partErr } = await mysupa
+        // 2. Ambil data player dari supabaseGame.participants
+        const { data: participant, error: partErr } = await supabaseGame
           .from("participants")
           .select("nickname, car, score, correct, completion, duration")
           .eq("id", participantId)
@@ -155,7 +155,7 @@ export default function PlayerResultsPage() {
   const calculateRank = async (sessId: string, myParticipantId: string, myScore: number, myDuration: number): Promise<number> => {
     try {
       // Ambil semua participant yang sudah completion = true
-      const { data: participants, error } = await mysupa
+      const { data: participants, error } = await supabaseGame
         .from("participants")
         .select("id, score, duration")
         .eq("session_id", sessId)
@@ -184,7 +184,7 @@ export default function PlayerResultsPage() {
   useEffect(() => {
     if (!sessionId || isGameFinished) return;
 
-    const channel = mysupa
+    const channel = supabaseGame
       .channel(`session-status-${sessionId}`)
       .on("postgres_changes", {
         event: "UPDATE",
@@ -210,7 +210,7 @@ export default function PlayerResultsPage() {
       .subscribe();
 
     return () => {
-      mysupa.removeChannel(channel);
+      supabaseGame.removeChannel(channel);
     };
   }, [sessionId, isGameFinished, currentPlayerStats]);
 

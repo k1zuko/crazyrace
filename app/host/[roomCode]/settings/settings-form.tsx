@@ -9,13 +9,14 @@ import { ArrowLeft, Clock, Hash, Play, Settings, Volume2, VolumeX } from "lucide
 import { Switch } from "@/components/ui/switch"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { mysupa, supabase } from "@/lib/supabase"
 import LoadingRetro from "@/components/loadingRetro"
 import { useGlobalLoading } from "@/contexts/globalLoadingContext"
 import Image from "next/image"
 import { t } from "i18next"
 import { useHostGuard } from "@/lib/host-guard"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogTitle } from "@/components/ui/dialog"
+import { supabaseGame } from "@/lib/supabase/game-client"
+import { createGFSClient } from "@/lib/supabase/gfs-client"
 
 const backgroundGif = "/assets/background/host/7.webp"
 
@@ -54,6 +55,7 @@ type Props = {
 }
 
 export default function SettingsForm({ roomCode, initialData }: Props) {
+    const supabase = createGFSClient()
     const router = useRouter()
 
     // Security: Verify host access
@@ -141,7 +143,7 @@ export default function SettingsForm({ roomCode, initialData }: Props) {
             current_questions: shuffleArray(quiz.questions).slice(0, parseInt(questionCount)),
         };
 
-        const { error } = await mysupa
+        const { error } = await supabaseGame
             .from("sessions")
             .update(settings)
             .eq("game_pin", roomCode);
@@ -163,7 +165,7 @@ export default function SettingsForm({ roomCode, initialData }: Props) {
         try {
             await Promise.allSettled([
                 supabase.from("game_sessions").delete().eq("game_pin", roomCode),
-                mysupa.from("sessions").delete().eq("game_pin", roomCode)
+                supabaseGame.from("sessions").delete().eq("game_pin", roomCode)
             ]);
             localStorage.removeItem("hostGamePin");
             sessionStorage.removeItem("currentHostId");

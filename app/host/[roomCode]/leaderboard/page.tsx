@@ -5,7 +5,6 @@ import { Card } from "@/components/ui/card"
 import { useParams, useRouter } from "next/navigation"
 import { useCallback, useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { mysupa, supabase } from "@/lib/supabase"
 import { breakOnCaps } from "@/utils/game"
 import Image from "next/image"
 import { HomeIcon, RotateCwIcon } from "lucide-react"
@@ -15,6 +14,8 @@ import { useAuth } from "@/contexts/authContext"
 import { t } from "i18next"
 import { useHostGuard } from "@/lib/host-guard"
 import { useGlobalLoading } from "@/contexts/globalLoadingContext"
+import { supabaseGame } from "@/lib/supabase/game-client"
+import { createGFSClient } from "@/lib/supabase/gfs-client"
 
 const APP_NAME = "crazyrace"; // Safety check for multi-tenant DB
 
@@ -44,6 +45,7 @@ const carGifMap: Record<string, string> = {
 }
 
 export default function HostLeaderboardPage() {
+  const supabase = createGFSClient()
   const params = useParams();
   const router = useRouter();
   const roomCode = params.roomCode as string;
@@ -78,8 +80,8 @@ export default function HostLeaderboardPage() {
       setLoading(true);
       setError(null);
 
-      // 1. Ambil session dari mysupa
-      const { data: sess, error: sessErr } = await mysupa
+      // 1. Ambil session dari supabaseGame
+      const { data: sess, error: sessErr } = await supabaseGame
         .from("sessions")
         .select("id, question_limit, current_questions")
         .eq("game_pin", roomCode)
@@ -92,7 +94,7 @@ export default function HostLeaderboardPage() {
       const totalQuestions = sess.question_limit || (sess.current_questions || []).length;
 
       // 2. Ambil semua participant yang completion = true
-      const { data: participants, error: partErr } = await mysupa
+      const { data: participants, error: partErr } = await supabaseGame
         .from("participants")
         .select("id, nickname, car, score, correct, answers, duration, completion")
         .eq("session_id", sess.id)
@@ -203,7 +205,7 @@ export default function HostLeaderboardPage() {
   useEffect(() => {
     if (!roomCode || !session?.id) return;
 
-    const channel = mysupa
+    const channel = supabaseGame
       .channel(`leaderboard-${roomCode}`)
       .on("postgres_changes", {
         event: "*",
@@ -217,7 +219,7 @@ export default function HostLeaderboardPage() {
       .subscribe();
 
     return () => {
-      mysupa.removeChannel(channel)
+      supabaseGame.removeChannel(channel)
     };
   }, [roomCode, session?.id]);
 
@@ -234,8 +236,8 @@ export default function HostLeaderboardPage() {
     setIsRestarting(true);
 
     try {
-      // 1. Ambil session lama dari mysupa
-      const { data: oldSess } = await mysupa
+      // 1. Ambil session lama dari supabaseGame
+      const { data: oldSess } = await supabaseGame
         .from("sessions")
         .select("quiz_id, host_id, question_limit, total_time_minutes, difficulty, current_questions")
         .eq("game_pin", roomCode)
@@ -251,8 +253,8 @@ export default function HostLeaderboardPage() {
       // 3. Generate PIN baru
       const newPin = generateGamePin(6);
 
-      // 4. BUAT SESSION BARU DI mysupa (real-time gameplay)
-      const { error: mysupaError } = await mysupa
+      // 4. BUAT SESSION BARU DI supabaseGame (real-time gameplay)
+      const { error: supabaseGameError } = await supabaseGame
         .from("sessions")
         .insert({
           game_pin: newPin,
@@ -265,7 +267,7 @@ export default function HostLeaderboardPage() {
           current_questions: sliced,
         });
 
-      if (mysupaError) throw mysupaError;
+      if (supabaseGameError) throw supabaseGameError;
 
       // 5. BUAT SESSION BARU DI supabase UTAMA (agar bisa join!)
       const { error: mainError } = await supabase
