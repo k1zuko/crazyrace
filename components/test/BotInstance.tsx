@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { mysupa } from "@/lib/supabase";
 import { generateXID } from "@/lib/id-generator";
+import { supabaseGame } from "@/lib/supabase/game-client";
 
 // ========== BOT BRAIN (IQ-based intelligence) ==========
 class BotBrain {
@@ -104,7 +104,7 @@ export function BotInstance({
                 nicknameRef.current = nicknameGenerator.generate();
                 const car = carOptions[Math.floor(Math.random() * carOptions.length)];
 
-                const { error: joinError } = await mysupa.from("participants").insert({
+                const { error: joinError } = await supabaseGame.from("participants").insert({
                     id: odorIdref.current,
                     session_id: sessionId,
                     nickname: nicknameRef.current,
@@ -131,7 +131,7 @@ export function BotInstance({
                     // Maybe change car based on personality
                     if (brain.shouldChangeCar() && gameStatus.current === "waiting") {
                         const newCar = carOptions[Math.floor(Math.random() * carOptions.length)];
-                        await mysupa
+                        await supabaseGame
                             .from("participants")
                             .update({ car: newCar })
                             .eq("id", odorIdref.current);
@@ -147,7 +147,7 @@ export function BotInstance({
 
                 // ========== PHASE 3: FETCH QUESTIONS FROM SERVER ==========
                 // Questions are only available after game starts, so we fetch them here
-                const { data: sessData, error: sessError } = await mysupa
+                const { data: sessData, error: sessError } = await supabaseGame
                     .from("sessions")
                     .select("current_questions")
                     .eq("id", sessionId)
@@ -192,7 +192,7 @@ export function BotInstance({
                     const shouldRace = (qIndex + 1) % 3 === 0 && !isLastQuestion;
 
                     try {
-                        await mysupa.rpc("submit_quiz_answer_batch", {
+                        await supabaseGame.rpc("submit_quiz_answer_batch", {
                             p_participant_id: odorIdref.current,
                             p_new_answers: [newAnswer],
                             p_total_score_add: score,
@@ -207,7 +207,7 @@ export function BotInstance({
                         // Handle minigame (racing) - just wait a bit then continue
                         if (shouldRace) {
                             await delay(1000 + Math.random() * 2000);
-                            await mysupa
+                            await supabaseGame
                                 .from("participants")
                                 .update({ racing: false })
                                 .eq("id", odorIdref.current);

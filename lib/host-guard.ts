@@ -1,7 +1,7 @@
 // lib/host-guard.ts
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { mysupa } from "@/lib/supabase";
+import { supabaseGame } from "./supabase/game-client";
 
 export function useHostGuard(roomCode: string) {
   const router = useRouter();
@@ -20,7 +20,7 @@ export function useHostGuard(roomCode: string) {
 
     (async () => {
       try {
-        const { data: session, error } = await mysupa
+        const { data: session, error } = await supabaseGame
           .from("sessions")
           .select("host_id")
           .eq("game_pin", roomCode)

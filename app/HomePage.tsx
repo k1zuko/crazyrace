@@ -26,7 +26,6 @@ import Link from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { mysupa, supabase } from "@/lib/supabase";
 import Image from "next/image";
 import { usePreloaderScreen } from "@/components/preloader-screen";
 import LoadingRetroScreen from "@/components/loading-screnn";
@@ -44,6 +43,8 @@ import dynamic from "next/dynamic";
 import { usePWAInstall } from "@/contexts/pwaContext";
 import PWAInstallBanner from "@/components/ui/pwa-install-banner";
 import Flag from "react-world-flags";
+import { createGFSClient } from "@/lib/supabase/gfs-client";
+import { supabaseGame } from "@/lib/supabase/game-client";
 
 const Scanner = dynamic(
   () =>
@@ -53,7 +54,7 @@ const Scanner = dynamic(
   { ssr: false }
 );
 
-const APP_NAME = "crazyrace";
+const supabase = createGFSClient();
 
 function LogoutDialog({
   open,
@@ -69,8 +70,7 @@ function LogoutDialog({
   const handleLogout = async () => {
     setLoading(true);
     await supabase.auth.signOut();
-    localStorage.clear();
-    window.location.replace("/login");
+    router.push('/login')
     onOpenChange(false);
   };
 
@@ -370,7 +370,7 @@ export default function HomePage() {
 
     setJoining(true);
     try {
-      const { data, error } = await mysupa.rpc("join_game", {
+      const { data, error } = await supabaseGame.rpc("join_game", {
         p_room_code: roomCode,
         p_user_id: profile.id,
         p_nickname: nickname.trim(),

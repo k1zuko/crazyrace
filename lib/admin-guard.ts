@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createGFSClient } from "./supabase/gfs-client";
 
 export function useAdminGuard() {
+    const supabase = createGFSClient()
     const router = useRouter();
     const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
     const [loading, setLoading] = useState(true);

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { mysupa } from "@/lib/supabase";
 import { useAuth } from "@/contexts/authContext";
 import { useGlobalLoading } from "@/contexts/globalLoadingContext";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { CardTitle, CardDescription } from "@/components/ui/card";
 import Image from "next/image";
 import { useTranslation } from "react-i18next";
+import { supabaseGame } from "@/lib/supabase/game-client";
 
 export default function CodePage() {
   const router = useRouter();
@@ -75,7 +75,7 @@ export default function CodePage() {
           "Player";
 
         // Call join_game RPC
-        const { data, error } = await mysupa.rpc("join_game", {
+        const { data, error } = await supabaseGame.rpc("join_game", {
           p_room_code: roomCode,
           p_user_id: profile.id,
           p_nickname: nickname,

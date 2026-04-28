@@ -5,7 +5,6 @@ import { Card, CardHeader, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Clock, CheckCircle, XCircle, X, Maximize2 } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
-import { mysupa, supabase } from "@/lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
 import LoadingRetro from "@/components/loadingRetro"
 import { useGlobalLoading } from "@/contexts/globalLoadingContext"
@@ -13,6 +12,7 @@ import { formatTime } from "@/utils/game"
 import { syncServerTime, getSyncedServerTime } from "@/utils/serverTime"
 import { generateXID } from "@/lib/id-generator"
 import Image from "next/image"
+import { supabaseGame } from "@/lib/supabase/game-client"
 
 // Background GIFs
 const backgroundGifs = [
@@ -169,7 +169,7 @@ export default function QuizGamePage() {
         const parsedQuestions = parseQuizQuestions(JSON.parse(cachedQuestions));
 
         // Ambil session info (timing, status, difficulty)
-        const { data: sess, error } = await mysupa
+        const { data: sess, error } = await supabaseGame
           .from("sessions")
           .select("id, status, started_at, total_time_minutes, difficulty")
           .eq("game_pin", roomCode)
@@ -196,7 +196,7 @@ export default function QuizGamePage() {
         setGameSrc(src);
 
         // Ambil participant untuk tahu index soal mana sekarang + racing status
-        const { data: participant } = await mysupa
+        const { data: participant } = await supabaseGame
           .from("participants")
           .select("answers, completion, current_question, racing")
           .eq("id", participantId)
@@ -228,7 +228,7 @@ export default function QuizGamePage() {
       }
 
       // 2. Jika tidak ada di cache, fetch dari database (HANYA FIRST TIME)
-      const { data: sess, error } = await mysupa
+      const { data: sess, error } = await supabaseGame
         .from("sessions")
         .select("id, status, started_at, total_time_minutes, current_questions, difficulty")
         .eq("game_pin", roomCode)
@@ -261,7 +261,7 @@ export default function QuizGamePage() {
       localStorage.setItem(cachedQuestionsKey, JSON.stringify(sess.current_questions || []));
 
       // 5. Ambil participant (termasuk racing status)
-      const { data: participant } = await mysupa
+      const { data: participant } = await supabaseGame
         .from("participants")
         .select("answers, completion, current_question, racing")
         .eq("id", participantId)
@@ -380,7 +380,7 @@ export default function QuizGamePage() {
   // ✅ FIX: Wrap dengan useCallback untuk menghindari race condition
   const saveProgressAndRedirect = useCallback(async () => {
     if (pendingAnswersRef.current.length > 0) {
-      await mysupa.rpc('submit_quiz_answer_batch', {
+      await supabaseGame.rpc('submit_quiz_answer_batch', {
         p_participant_id: participantId,
         p_new_answers: pendingAnswersRef.current,
         p_total_score_add: pendingScoreRef.current,
@@ -392,7 +392,7 @@ export default function QuizGamePage() {
 
       pendingAnswersRef.current = [];
     } else {
-      await mysupa
+      await supabaseGame
         .from("participants")
         .update({
           completion: true,
@@ -437,7 +437,7 @@ export default function QuizGamePage() {
   useEffect(() => {
     if (!roomCode || !saveProgressAndRedirect) return;
 
-    const channel = mysupa
+    const channel = supabaseGame
       .channel(`minigame-session-updates-${roomCode}`)
       .on(
         'postgres_changes',
@@ -457,7 +457,7 @@ export default function QuizGamePage() {
       .subscribe();
 
     return () => {
-      mysupa.removeChannel(channel);
+      supabaseGame.removeChannel(channel);
     };
   }, [roomCode, saveProgressAndRedirect]);
 
@@ -474,8 +474,8 @@ export default function QuizGamePage() {
       if (!event.data || event.data.type !== 'racing_finished' || !participantId) return;
 
       try {
-        // UPDATE LANGSUNG ke mysupa.participants → NO RPC!
-        const { error } = await mysupa
+        // UPDATE LANGSUNG ke supabaseGame.participants → NO RPC!
+        const { error } = await supabaseGame
           .from("participants")
           .update({ racing: false })
           .eq("id", participantId);
@@ -517,7 +517,7 @@ export default function QuizGamePage() {
 
     try {
       // Panggil RPC dengan jawaban - server akan return isCorrect dan correctAnswer
-      const serverTask = mysupa.rpc('submit_quiz_answer_secure', {
+      const serverTask = supabaseGame.rpc('submit_quiz_answer_secure', {
         p_participant_id: participantId,
         p_question_id: currentQuestion.id,
         p_answer_index: answerIndex,

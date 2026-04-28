@@ -8,7 +8,6 @@ import { Progress } from "@/components/ui/progress"
 import { Users, Clock, Crown, Award, SkipForward, Volume2, VolumeX, Check } from "lucide-react"
 import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { mysupa, supabase } from "@/lib/supabase" // ← Ganti ke mysupa kamu
 import { formatTime, breakOnCaps } from "@/utils/game"
 import { syncServerTime, getSyncedServerTime } from "@/utils/serverTime"
 import LoadingRetro from "@/components/loadingRetro"
@@ -18,6 +17,8 @@ import { Dialog, DialogContent, DialogOverlay, DialogTitle, DialogDescription, D
 import { generateXID } from "@/lib/id-generator"
 import { useHostGuard } from "@/lib/host-guard"
 import { t } from "i18next"
+import { supabaseGame } from "@/lib/supabase/game-client"
+import { createGFSClient } from "@/lib/supabase/gfs-client"
 
 const backgroundImage = "/assets/background/host/9.webp"
 
@@ -30,6 +31,7 @@ const carGifMap: Record<string, string> = {
 }
 
 export default function HostMonitorPage() {
+  const supabase = createGFSClient()
   const params = useParams();
   const router = useRouter();
   const roomCode = params.roomCode as string;
@@ -69,7 +71,7 @@ export default function HostMonitorPage() {
 
   const syncResultsToMainSupabase = async (sessionId: string) => {
     try {
-      const { data: sess } = await mysupa
+      const { data: sess } = await supabaseGame
         .from("sessions")
         .select("id, host_id, quiz_id, question_limit, total_time_minutes, current_questions, started_at, ended_at")
         .eq("id", sessionId)
@@ -79,7 +81,7 @@ export default function HostMonitorPage() {
 
       const totalQuestions = sess.question_limit || (sess.current_questions || []).length;
 
-      const { data: participants } = await mysupa
+      const { data: participants } = await supabaseGame
         .from("participants")
         .select("id, user_id, nickname, car, score, correct, answers, duration, completion, current_question, started_at, finished_at")
         .eq("session_id", sessionId);
@@ -151,7 +153,7 @@ export default function HostMonitorPage() {
 
     try {
       // 1. Akhiri session
-      const { data: sess, error: sessError } = await mysupa
+      const { data: sess, error: sessError } = await supabaseGame
         .from("sessions")
         .update({
           status: "finished",
@@ -164,7 +166,7 @@ export default function HostMonitorPage() {
       if (sessError || !sess) throw sessError || new Error("Session tidak ditemukan");
 
       // 2. PAKSA SEMUA PLAYER SELESAI → DURASI OTOMATIS KEISI VIA TRIGGER!
-      const { error: playerError } = await mysupa
+      const { error: playerError } = await supabaseGame
         .from("participants")
         .update({
           completion: true,
@@ -206,7 +208,7 @@ export default function HostMonitorPage() {
     return () => clearInterval(interval);
   }, [updateTimer]);
 
-  // Main effect: fetch + realtime dari mysupa
+  // Main effect: fetch + realtime dari supabaseGame
   useEffect(() => {
     if (!roomCode) return;
 
@@ -214,7 +216,7 @@ export default function HostMonitorPage() {
 
     const init = async () => {
       // 1. Fetch session
-      const { data: sess, error } = await mysupa
+      const { data: sess, error } = await supabaseGame
         .from("sessions")
         .select("id, status, started_at, current_questions, question_limit, total_time_minutes")
         .eq("game_pin", roomCode)
@@ -231,7 +233,7 @@ export default function HostMonitorPage() {
       setGameDuration((sess.total_time_minutes || 5) * 60);
 
       // 2. Fetch participants (cursor-based)
-      const { data: parts, count } = await mysupa
+      const { data: parts, count } = await supabaseGame
         .from("participants")
         .select("id, nickname, car, score, correct, current_question, completion, answers, joined_at", { count: "exact" })
         .eq("session_id", sess.id)
@@ -265,7 +267,7 @@ export default function HostMonitorPage() {
       hideLoading();
 
       // 3. Realtime session
-      sessionChan = mysupa
+      sessionChan = supabaseGame
         .channel(`host-sess-${roomCode}`)
         .on("postgres_changes", {
           event: "UPDATE",
@@ -285,14 +287,14 @@ export default function HostMonitorPage() {
     init();
 
     return () => {
-      if (sessionChan) mysupa.removeChannel(sessionChan);
+      if (sessionChan) supabaseGame.removeChannel(sessionChan);
     };
   }, [roomCode, router]);
 
   useEffect(() => {
     if (!session?.id) return;
 
-    const channel = mysupa
+    const channel = supabaseGame
       .channel(`host-parts-${roomCode}`)
       .on("postgres_changes", {
         event: "*",
@@ -342,7 +344,7 @@ export default function HostMonitorPage() {
       });
 
     return () => {
-      mysupa.removeChannel(channel);
+      supabaseGame.removeChannel(channel);
     };
   }, [session?.id, roomCode]); // ← RE-SUBSCRIBE KALAU session.id BERUBAH!
 
@@ -377,7 +379,7 @@ export default function HostMonitorPage() {
     if (!session?.id || !cursor || isLoadingMore || !hasMore) return;
 
     setIsLoadingMore(true);
-    const { data: more } = await mysupa
+    const { data: more } = await supabaseGame
       .from("participants")
       .select("id, nickname, car, score, correct, current_question, completion, answers, joined_at")
       .eq("session_id", session.id)
