@@ -1,0 +1,256 @@
+{
+  "login": {
+    "title": "Login",
+    "googleMobile": "Google",
+    "googleDesktop": "Continue with Google",
+    "or": "Or",
+    "emailPlaceholder": "Email or username...",
+    "passwordPlaceholder": "Password...",
+    "signIn": "Sign In",
+    "signingIn": "Signing In...",
+    "noAccount": "Don't have an account?",
+    "registerHere": "Register here",
+    "error": "Something went wrong"
+  },
+  "logoutDialog": {
+    "title": "Log Out",
+    "message": "Are you sure you want to log out?",
+    "cancel": "Cancel",
+    "logout": "Logout",
+    "loading": "Loading..."
+  },
+  "hostGame": {
+    "title": "HOST GAME",
+    "description": "Create your own race and challenge others",
+    "button": "Create Room"
+  },
+  "joinRace": {
+    "title": "JOIN RACE",
+    "description": "Enter a code to join an existing race",
+    "roomCodePlaceholder": "Room Code",
+    "nicknamePlaceholder": "Nickname",
+    "joinButton": "JOIN",
+    "joining": "JOINING..."
+  },
+  "alert": {
+    "pwaInstallUnavailable": {
+      "title": "App Not Available",
+      "message": "App already installed or not available yet."
+    },
+    "roomCode": {
+      "title": "Oops! Your Room Code!",
+      "message": "The room code must be 6 letters."
+    },
+    "nickname": {
+      "title": "Oops! Empty name!",
+      "message": "The name cannot be blank, okay!"
+    },
+    "both": {
+      "title": "Oops! Input Incomplete!",
+      "message": "Fill in the Room Code (6 letters) and Nickname first, OK!"
+    },
+    "roomNotFound": {
+      "title": "Oops Room not found!",
+      "message": "Your room code is wrong"
+    },
+    "general": {
+      "title": "Oops Belum Siap Balapan",
+      "message": "Fill in the Room Code (6 letters) and Nickname first, OK!"
+    },
+    "duplicate": {
+      "title": "Oops! Duplicate Nickname!",
+      "message": "That nickname is already taken in this room. Please choose another one."
+    },
+    "sessionLocked": {
+      "title": "Cannot Join",
+      "message": "The game has already started or finished. New players cannot join."
+    },
+    "roomFull": {
+      "title": "Room is Full",
+      "message": "Maximum number of players reached. Please try another room."
+    },
+    "closeButton": "Okay!"
+  },
+  "menu": {
+    "howToPlay": "How to Play",
+    "soloTryout": "Solo Tryout",
+    "tryoutButton": "TRYOUT",
+    "starting": "STARTING...",
+    "language": "Language",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit Fullscreen",
+    "installApp": "Install",
+    "appInstalled": "Installed!",
+    "logout": "Logout"
+  },
+  "howToPlay": {
+    "title": "Crazy Race Guide",
+    "description": "Flip through the pages to learn how to race and win!",
+    "prev": "Prev",
+    "next": "Next",
+    "gotIt": "Got It!",
+    "steps": [
+      {
+        "title": "Host a Game",
+        "content": "Click 'HOST GAME' to create a room and get a unique code. Share it with your friends to start the challenge!"
+      },
+      {
+        "title": "Join the Race",
+        "content": "Enter the room code and your nickname in 'JOIN RACE'. Hit JOIN to hop into the action and pick your car color."
+      },
+      {
+        "title": "Answer Questions",
+        "content": "When the race kicks off, trivia questions pop up. Nail the answers right to zoom your car forward on the track."
+      },
+      {
+        "title": "Race to Win",
+        "content": "Speed to the finish line! The first player to answer the most questions correctly claims victory and bragging rights."
+      },
+      {
+        "title": "Pro Tip",
+        "content": "Pick a killer nickname and strategize: go for lightning-fast answers or laser-focused accuracy? Your call!"
+      }
+    ]
+  },
+  "mainTitle": {
+    "title1": "CRAZY",
+    "title2": "RACE",
+    "subtitle": "ANSWER • RACE • WIN"
+  },
+    "settings": {
+    "title": "Settings",
+    "quiztitle": "Selected Quiz",
+    "duration": "Duration",
+    "questions": "Questions",
+    "difficulty": "Difficulty",
+    "difficultyOptions": {
+      "Easy": "Easy",
+      "Medium": "Medium",
+      "Hard": "Hard"
+    },
+    "start": "Continue",
+    "errorQuizNotFound": "Error: Quiz Not Found",
+    "backButton": "Back to Host",
+    "sound": "Sound",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "volume": "Volume",
+    "language": "Language",
+    "languages": {
+      "en": "English",
+      "id": "Bahasa Indonesia",
+      "ar": "العربية"
+    },
+    "loadingSession": "Loading session or session not found...",
+    "unknownQuiz": "Unknown Quiz",
+    "noDescription": "No description available",
+    "minutes": "Minutes",
+    "deleteSession": {
+      "title": "Delete Session?",
+      "description": "This action will delete the session.",
+      "cancelButton": "Cancel",
+      "deleteButton": "Delete",
+      "deletingButton": "Deleting..."
+    }
+  },
+    "soal": {
+    "title": "Select Quiz",
+    "search": "Search Quiz...",
+    "categories": "All Categories",
+    "previous": "Previous",
+    "next": "Next",
+    "initializing": "INITIALIZING...",
+    "noArchives": "NO ARCHIVES FOUND",
+    "backToHome": "Back to Home",
+    "sound": "Sound",
+    "volume": "Volume",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "language": "Language",
+    "categoryNames": {
+      "language": "Language",
+      "science": "Science",
+      "technology": "Technology",
+      "math": "Math",
+      "general": "General",
+      "business": "Business",
+      "sports": "Sports",
+      "history": "History"
+    }
+  },
+    "hostroom": {
+    "title": "Host Room",
+    "start": "Start",
+    "players": "{{count}} Player",
+    "waiting": "Waiting for players to join...",
+    "kickconfirmation": "Kick {{name}}?",
+    "cancel": "Cancel",
+    "kick": "Kick",
+    "backToSettings": "Back to Host",
+    "sound": "Sound",
+    "volume": "Volume",
+    "mute": "Mute",
+    "unmute": "Unmute",
+    "loadingMore": "Loading more...",
+    "playerCount": "{{count}} Player",
+    "playerCount_plural": "{{count}} Players"
+  },
+    "lobby": {
+    "title": "Waiting Room",
+    "chooseCar": "CHOOSE CAR",
+    "exit": "Exit",
+    "keluar": "Exit Room?",
+    "homepage": "You will Go to the Homepage.",
+    "cancel": "Cancel",
+    "you": "YOU",
+    "languages": {
+      "en": "English",
+      "id": "Bahasa Indonesia",
+      "ar": "العربية"
+    }
+  },
+  "monitor":{
+    "title": "Race Progress",
+    "button": "End Race",
+    "endGame": "End Game",
+    "endGameConfirm": "Are you sure you want to end the game?",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "noPlayers": "No players in the game yet..."
+  },
+  "resulthost":{
+    "title": "Leaderboard",
+    "notAvailable": "Leaderboard not available",
+    "noDataFound": "No data found",
+    "backToHome": "Back to Home",
+    "home": "HOME",
+    "restart": "RESTART",
+    "noFinished": "No players finished yet",
+    "sessionNotFound": "Session not found",
+    "failedLoad": "Failed to load leaderboard",
+    "restartFailed": "Failed to restart game"
+  },
+  "joinresult":{
+    "title": "Result",
+    "correct": "Correct",
+    "score": "Score",
+    "time": "Time",
+    "accuracy": "Accuracy",
+    "statistics": "Statistics",
+    "waitingForHost": "Waiting for host to finish the game..."
+  },
+  "pwa": {
+    "installTitle": "Install Crazy Race!",
+    "install": "Install",
+    "later": "Later"
+  },
+  "loading": {
+    "title": "Loading",
+    "tips": [
+      "Loading assets...",
+      "Let it be slow but safe",
+      "Loading depends on the internet",
+      "Enjoy the race..."
+    ]
+  }
+}

@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <title>Javascript Racer - v1 (straight)</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Tailwind CSS for modern styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #1a202c;
+      /* Dark theme background */
+      color: #e2e8f0;
+      font-family: 'Inter', sans-serif;
+    }
+
+    #game-container {
+      position: relative;
+      box-sizing: border-box;
+      /* Pastiin container hitung border/margin benar */
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #screen-area {
+      flex: 1;
+      width: 100%;
+      margin: 0 8px 8px 8px;
+      max-height: calc(100vh - 180px);
+      /* Reserve space for controls */
+      position: relative;
+      background-image: url('images/background/6.gif');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      border: 8px solid #333;
+      border-radius: 12px;
+      box-sizing: border-box;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+    }
+
+    @media (min-width: 768px) {
+      #screen-area {
+        border: 20px solid #2d3748;
+        margin: 20px;
+        max-height: none;
+        flex: none;
+        height: 100vh;
+        margin: 0;
+        border: none;
+        border-radius: 0;
+      }
+    }
+
+    #canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: 4px;
+      /* Slight rounding inside bezel */
+    }
+
+
+    #mobile-controls {
+      position: fixed !important;
+      bottom: 30px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      padding: 0 16px;
+      z-index: 30;
+      pointer-events: none;
+    }
+
+    #mobile-controls .control-group {
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    #mobile-controls button {
+      width: 80px;
+      height: 80px;
+      border-radius: 0;
+      border: none;
+      background: transparent;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s ease;
+      pointer-events: auto;
+      touch-action: manipulation;
+    }
+
+    #mobile-controls button img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    #mobile-controls button:active {
+      transform: scale(0.95);
+    }
+
+    #steering-controls,
+    #accel-brake-controls {
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    /* Small phones (<380px) */
+    @media (max-width: 380px) {
+      #mobile-controls {
+        bottom: 20px;
+        padding: 0 10px;
+      }
+
+      #mobile-controls button {
+        width: 60px;
+        height: 60px;
+      }
+
+      #steering-controls,
+      #accel-brake-controls {
+        gap: 4px;
+      }
+
+      #screen-area {
+        max-height: calc(100vh - 150px);
+      }
+    }
+
+
+    @media (min-width: 768px) {
+      #mobile-controls {
+        display: none !important;
+      }
+    }
+
+    #controls {
+      position: fixed;
+      top: 0rem;
+      right: 1rem;
+      background: rgba(45, 55, 72, 0.95);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+      transition: transform 0.3s ease-in-out;
+      opacity: 0;
+      /* Hide controls visually */
+      pointer-events: auto;
+      /* Keep interactive */
+    }
+
+    #controls.hidden {
+      transform: translateX(100%);
+    }
+
+    #controls-toggle {
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      z-index: 50;
+      opacity: 0;
+      /* Hide toggle button visually */
+      pointer-events: auto;
+      /* Keep interactive */
+    }
+
+    #desktop-controls {
+      position: fixed;
+      bottom: 20px;
+      left: 0;
+      right: 0;
+      z-index: 100;
+      display: none;
+      /* Default disembunyikan */
+    }
+
+    @media (min-width: 768px) {
+      #desktop-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        padding: 0 20px;
+      }
+    }
+
+    .desktop-control-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .desk-btn {
+      width: 80px;
+      height: 80px;
+      border-radius: 0px;
+      /* sudut melengkung ringan (bisa diganti 0px kalau mau kotak lurus) */
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      transition: all 0.15s ease;
+      overflow: visible;
+      /* penting! biar gambar tidak dipotong */
+    }
+
+    .desk-btn img {
+      width: 100%;
+      /* gambar di dalam tombol jadi lebih besar */
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .desk-btn:active {
+
+      transform: scale(0.95);
+
+    }
+
+
+
+    .retro-button {
+      position: relative;
+      padding: 16px 32px;
+      font-size: 18px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #ffeb3b;
+      background: linear-gradient(145deg, #d32f2f, #b71c1c);
+      border: none;
+      border-radius: 8px;
+      box-shadow:
+        0 6px 0 #7f0000,
+        0 8px 10px rgba(0, 0, 0, 0.5),
+        inset 0 2px 2px rgba(255, 255, 255, 0.2);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      outline: none;
+      overflow: hidden;
+    }
+
+    .retro-button::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: left 0.5s ease;
+    }
+
+    .retro-button:hover {
+      transform: translateY(2px);
+      box-shadow:
+        0 4px 0 #7f0000,
+        0 6px 8px rgba(0, 0, 0, 0.4),
+        inset 0 2px 2px rgba(255, 255, 255, 0.2);
+      background: linear-gradient(145deg, #c62828, #9a0007);
+    }
+
+    .retro-button:active {
+      transform: translateY(6px);
+      box-shadow:
+        0 0 0 #7f0000,
+        0 2px 4px rgba(0, 0, 0, 0.3),
+        inset 0 2px 2px rgba(255, 255, 255, 0.2);
+    }
+
+    .retro-button:hover::before {
+      left: 100%;
+    }
+
+    .retro-button:focus {
+      box-shadow:
+        0 6px 0 #7f0000,
+        0 8px 10px rgba(0, 0, 0, 0.5),
+        0 0 0 3px rgba(255, 235, 59, 0.5),
+        inset 0 2px 2px rgba(255, 255, 255, 0.2);
+    }
+
+    .retro-button::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at center, rgba(255, 255, 255, 0.4) 0%, transparent 70%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .retro-button:hover::after {
+      opacity: 1;
+    }
+
+    #instructions {
+      position: fixed;
+      bottom: 1rem;
+      left: 1rem;
+      background: rgba(45, 55, 72, 0.95);
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+    }
+
+    #hud {
+      position: fixed;
+      top: 1rem;
+      left: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      background: rgba(45, 55, 72, 0.95);
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      opacity: 0;
+      /* Hide HUD visually */
+      pointer-events: none;
+      /* Disable pointer events for HUD */
+    }
+
+    .hud .value {
+      color: #ed8936;
+      /* Orange for values */
+    }
+
+    select,
+    input[type="range"] {
+      background: #4a5568;
+      color: #e2e8f0;
+      border: none;
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      width: 100%;
+    }
+
+    label {
+      font-size: 0.875rem;
+      color: #a0aec0;
+    }
+
+    #finish-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+      flex-direction: column;
+      color: #fff;
+      font-family: 'Inter', sans-serif;
+    }
+
+    #finish-screen h2 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+      color: #ffeb3b;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    #finish-screen p {
+      font-size: 1.2rem;
+      margin-bottom: 2rem;
+      text-align: center;
+      max-width: 80%;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="controls-info" class="hidden bg-gray-800 text-white p-4 rounded-lg shadow-lg"
+    style="position: fixed; top: 1rem; right: 1rem; z-index: 100; opacity: 1; transition: opacity 0.5s ease-out;">
+    <p>Use <strong>WASD</strong> or <strong>Arrow Keys</strong> to move.</p>
+  </div>
+  <div id="game-container">
+    <div id="screen-area">
+      <button id="controls-toggle"
+        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition">Controls</button>
+      <table id="controls" class="hidden">
+        <tr>
+          <td id="fps" colspan="2" class="text-right text-sm text-gray-400"></td>
+        </tr>
+        <tr>
+          <th><label for="resolution">Resolution:</label></th>
+          <td>
+            <select id="resolution">
+              <option value="fine">Fine (1280x960)</option>
+              <option selected value="high">High (1024x768)</option>
+              <option value="medium">Medium (640x480)</option>
+              <option value="low">Low (480x360)</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <th><label for="lanes">Lanes:</label></th>
+          <td>
+            <select id="lanes">
+              <option>1</option>
+              <option>2</option>
+              <option selected>3</option>
+              <option>4</option>
+            </select>
+          </td>
+        </tr>
+        <tr>
+          <th><label for="roadWidth">Road Width (<span id="currentRoadWidth"></span>):</label></th>
+          <td><input id="roadWidth" type="range" min="500" max="3000" title="integer (500-3000)"></td>
+        </tr>
+        <tr>
+          <th><label for="cameraHeight">Camera Height (<span id="currentCameraHeight"></span>):</label></th>
+          <td><input id="cameraHeight" type="range" min="500" max="5000" title="integer (500-5000)"></td>
+        </tr>
+        <tr>
+          <th><label for="drawDistance">Draw Distance (<span id="currentDrawDistance"></span>):</label></th>
+          <td><input id="drawDistance" type="range" min="100" max="500" title="integer (100-500)"></td>
+        </tr>
+        <tr>
+          <th><label for="fieldOfView">Field of View (<span id="currentFieldOfView"></span>):</label></th>
+          <td><input id="fieldOfView" type="range" min="80" max="140" title="integer (80-140)"></td>
+        </tr>
+        <tr>
+          <th><label for="fogDensity">Fog Density (<span id="currentFogDensity"></span>):</label></th>
+          <td><input id="fogDensity" type="range" min="0" max="50" title="integer (0-50)"></td>
+        </tr>
+      </table>
+
+      <div id="racer">
+        <div id="hud">
+          <span id="speed" class="hud">Speed: <span id="speed_value" class="value">0</span> mph</span>
+          <span id="current_lap_time" class="hud">Time: <span id="current_lap_time_value"
+              class="value">0.0</span></span>
+          <span id="last_lap_time" class="hud">Last Lap: <span id="last_lap_time_value" class="value">0.0</span></span>
+          <span id="fast_lap_time" class="hud">Fastest Lap: <span id="fast_lap_time_value"
+              class="value">0.0</span></span>
+        </div>
+        <canvas id="canvas">
+          Sorry, this example cannot be run because your browser does not support the &lt;canvas&gt; element
+        </canvas>
+      </div>
+    </div>
+
+    <div id="mobile-controls" class="md:hidden"> <!-- md:hidden = Tailwind: sembunyi di ≥768px -->
+      <div id="steering-controls">
+        <button id="left" class="control-btn" title="Steer Left">
+          <img src="./images/left.webp" alt="Steer Left" width="100%">
+        </button>
+        <button id="right" class="control-btn" title="Steer Right">
+          <img src="./images/right.webp" alt="Steer Right" width="100%">
+        </button>
+      </div>
+      <div id="accel-brake-controls">
+        <button id="brake" class="control-btn" title="Brake">
+          <img src="./images/down.webp" alt="Brake" width="100%">
+        </button>
+        <button id="accel" class="control-btn" title="Accelerate">
+          <img src="./images/up.webp" alt="Accelerate" width="100%">
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Desktop Controls (+ shape) -->
+  <!-- Desktop Controls (+ shape) -->
+  <div id="desktop-controls">
+    <div class="desktop-control-group">
+      <div class="desk-btn" id="desk-left">
+        <img src="./images/left.webp" alt="Left" class="w-full h-full object-contain">
+      </div>
+      <div class="desk-btn" id="desk-right">
+        <img src="./images/right.webp" alt="Right" class="w-full h-full object-contain">
+      </div>
+    </div>
+    <div class="desktop-control-group">
+      <div class="desk-btn" id="desk-down">
+        <img src="./images/down.webp" alt="Brake" class="w-full h-full object-contain">
+      </div>
+      <div class="desk-btn" id="desk-up">
+        <img src="./images/up.webp" alt="Accelerate" class="w-full h-full object-contain">
+      </div>
+    </div>
+  </div>
+
+  <!-- Finish Screen Overlay -->
+  <div id="finish-screen">
+    <h2>Race Completed!</h2>
+    <p>Finished</p>
+  </div>
+
+  <script src="stats.js"></script>
+  <script src="common.js"></script>
+  <script>
+    // Parse URL parameters
+    const playerId = localStorage.getItem("playerId");
+    const urlParams = new URLSearchParams(window.location.search);
+    const startIndex = urlParams.get('startIndex');
+    const roomCode = urlParams.get('roomCode');
+
+    // Original game JavaScript code (adapted for v1 straight)
+    var fps = 60;
+    var step = 1 / fps;
+    var width = 1024;
+    var height = 768;
+    var centrifugal = 0.3;
+    var offRoadDecel = 0.99;
+    var segments = [];
+    var cars = [];
+    var stats = Game.stats('fps');
+    var canvas = Dom.get('canvas');
+    var ctx = canvas.getContext('2d');
+    var background = null;
+    var sprites = null;
+    var resolution = null;
+    var roadWidth = 2000;
+    var segmentLength = 200;
+    var rumbleLength = 3;
+    var trackLength = null;
+    var lanes = 3;
+    var fieldOfView = 100;
+    var cameraHeight = 1000;
+    var cameraDepth = null;
+    var drawDistance = 300;
+    var playerX = 0;
+    var playerZ = null;
+    var fogDensity = 5;
+    var position = 0;
+    var speed = 0;
+    var maxSpeed = segmentLength / step;
+    var accel = maxSpeed / 5;
+    var breaking = -maxSpeed;
+    var decel = -maxSpeed / 5;
+    var offRoadDecel = -maxSpeed / 2;
+    var offRoadLimit = maxSpeed / 4;
+    var totalCars = 35; // Total NPC cars for straight version
+    var currentLapTime = 0;
+    var lastLapTime = null;
+    var gameFinished = false; // New flag for finish
+    var keyLeft = false;
+    var keyRight = false;
+    var keyFaster = false;
+    var keySlower = false;
+    var hud = {
+      speed: { value: null, dom: Dom.get('speed_value') },
+      current_lap_time: { value: null, dom: Dom.get('current_lap_time_value') },
+      last_lap_time: { value: null, dom: Dom.get('last_lap_time_value') },
+      fast_lap_time: { value: null, dom: Dom.get('fast_lap_time_value') }
+    };
+
+    // Fungsi untuk haptic feedback (kompatibel dengan perangkat yang mendukung)
+    function triggerHapticFeedback(intensity = 'light') {
+      if (navigator.vibrate) {
+        switch (intensity) {
+          case 'light': navigator.vibrate(10); break;
+          case 'medium': navigator.vibrate(50); break;
+          case 'strong': navigator.vibrate(100); break;
+        }
+      }
+    }
+
+    // Fungsi untuk handle touch events dengan pencegahan default dan haptic
+    function handleTouchStart(e, flagSetter) {
+      e.preventDefault();
+      flagSetter(true);
+      triggerHapticFeedback('light');
+    }
+
+    function handleTouchEnd(e, flagSetter) {
+      e.preventDefault();
+      flagSetter(false);
+      triggerHapticFeedback('light');
+    }
+
+    function update(dt) {
+      if (gameFinished) {
+        speed = 0; // Stop the car
+        return; // Pause updates
+      }
+
+      var n, car, carW, sprite, spriteW;
+      var playerSegment = findSegment(position + playerZ);
+      var playerW = SPRITES.PLAYER_STRAIGHT.w * SPRITES.SCALE;
+      var speedPercent = speed / maxSpeed;
+      var dx = dt * 2 * speedPercent;
+      var startPosition = position;
+      updateCars(dt, playerSegment, playerW);
+      position = Util.increase(position, dt * speed, trackLength);
+      if (keyLeft) playerX = playerX - dx;
+      else if (keyRight) playerX = playerX + dx;
+      playerX = playerX - (dx * speedPercent * playerSegment.curve * centrifugal);
+      if (keyFaster) speed = Util.accelerate(speed, accel, dt);
+      else if (keySlower) speed = Util.accelerate(speed, breaking, dt);
+      else speed = Util.accelerate(speed, decel, dt);
+      if ((playerX < -1) || (playerX > 1)) {
+        if (speed > offRoadLimit) speed = Util.accelerate(speed, offRoadDecel, dt);
+        for (n = 0; n < playerSegment.sprites.length; n++) {
+          sprite = playerSegment.sprites[n];
+          spriteW = sprite.source.w * SPRITES.SCALE;
+          if (Util.overlap(playerX, playerW, sprite.offset + spriteW / 2 * (sprite.offset > 0 ? 1 : -1), spriteW)) {
+            speed = maxSpeed / 5;
+            position = Util.increase(playerSegment.p1.world.z, -playerZ, trackLength);
+            break;
+          }
+        }
+      }
+      for (n = 0; n < playerSegment.cars.length; n++) {
+        car = playerSegment.cars[n];
+        carW = car.sprite.w * SPRITES.SCALE;
+        if (speed > car.speed) {
+          if (Util.overlap(playerX, playerW, car.offset, carW, 0.8)) {
+            speed = car.speed * (car.speed / speed);
+            position = Util.increase(car.z, -playerZ, trackLength);
+            break;
+          }
+        }
+      }
+      playerX = Util.limit(playerX, -3, 3);
+      speed = Util.limit(speed, 0, maxSpeed);
+      if (position > playerZ) {
+        if (currentLapTime && (startPosition < playerZ)) {
+          lastLapTime = currentLapTime;
+          currentLapTime = 0;
+          if (lastLapTime <= Util.toFloat(Dom.storage.fast_lap_time)) {
+            Dom.storage.fast_lap_time = lastLapTime;
+            updateHud('fast_lap_time', formatTime(lastLapTime));
+            Dom.addClassName('fast_lap_time', 'fastest');
+            Dom.addClassName('last_lap_time', 'fastest');
+          } else {
+            Dom.removeClassName('fast_lap_time', 'fastest');
+            Dom.removeClassName('last_lap_time', 'fastest');
+          }
+          updateHud('last_lap_time', formatTime(lastLapTime));
+          Dom.show('last_lap_time');
+
+          // Set game as finished after one lap
+          gameFinished = true;
+
+          document.getElementById('finish-screen').style.display = 'flex';
+          window.parent.postMessage({ type: 'racing_finished' }, '*');
+
+          // Otomatis redirect setelah 2 detik
+          setTimeout(() => {
+            if (roomCode && startIndex) {
+              window.location.href = `/player/${roomCode}/game?startIndex=${startIndex}`;
+            } else {
+              // Fallback if no params
+              window.history.back();
+            }
+          }, 2000);
+        } else {
+          currentLapTime += dt;
+        }
+      }
+      updateHud('speed', 5 * Math.round(speed / 500));
+      updateHud('current_lap_time', formatTime(currentLapTime));
+    }
+
+    function updateCars(dt, playerSegment, playerW) {
+      var n, car, oldSegment, newSegment, index;
+      for (n = 0; n < cars.length; n++) {
+        car = cars[n];
+        oldSegment = findSegment(car.z);
+        car.offset = car.offset + updateCarOffset(car, oldSegment, playerSegment, playerW);
+        car.z = Util.increase(car.z, dt * car.speed, trackLength);
+        car.percent = Util.percentRemaining(car.z, segmentLength);
+        newSegment = findSegment(car.z);
+        if (oldSegment != newSegment) {
+          index = oldSegment.cars.indexOf(car);
+          oldSegment.cars.splice(index, 1);
+          newSegment.cars.push(car);
+        }
+      }
+    }
+
+    function updateCarOffset(car, carSegment, playerSegment, playerW) {
+      var i, j, dir, segment, otherCar, otherCarW, lookahead = 20, carW = car.sprite.w * SPRITES.SCALE;
+      if ((carSegment.index - playerSegment.index) > drawDistance) return 0;
+      for (i = 1; i < lookahead; i++) {
+        segment = segments[(carSegment.index + i) % segments.length];
+        if ((segment === playerSegment) && (car.speed > speed) && (Util.overlap(playerX, playerW, car.offset, carW, 1.2))) {
+          if (playerX > 0.5) dir = -1;
+          else if (playerX < -0.5) dir = 1;
+          else dir = (car.offset > playerX) ? 1 : -1;
+          return dir * 1 / i * (car.speed - speed) / maxSpeed;
+        }
+        for (j = 0; j < segment.cars.length; j++) {
+          otherCar = segment.cars[j];
+          otherCarW = otherCar.sprite.w * SPRITES.SCALE;
+          if ((car.speed > otherCar.speed) && Util.overlap(car.offset, carW, otherCar.offset, otherCarW, 1.2)) {
+            if (otherCar.offset > 0.5) dir = -1;
+            else if (otherCar.offset < -0.5) dir = 1;
+            else dir = (car.offset > otherCar.offset) ? 1 : -1;
+            return dir * 1 / i * (car.speed - otherCar.speed) / maxSpeed;
+          }
+        }
+      }
+      if (car.offset < -0.9) return 0.1;
+      else if (car.offset > 0.9) return -0.1;
+      else return 0;
+    }
+
+    function updateHud(key, value) {
+      if (hud[key].value !== value) {
+        hud[key].value = value;
+        Dom.set(hud[key].dom, value);
+      }
+    }
+
+    function formatTime(dt) {
+      var minutes = Math.floor(dt / 60);
+      var seconds = Math.floor(dt - (minutes * 60));
+      var tenths = Math.floor(10 * (dt - Math.floor(dt)));
+      if (minutes > 0) return minutes + "." + (seconds < 10 ? "0" : "") + seconds + "." + tenths;
+      else return seconds + "." + tenths;
+    }
+
+    function render() {
+      var baseSegment = findSegment(position);
+      var basePercent = Util.percentRemaining(position, segmentLength);
+      var playerSegment = findSegment(position + playerZ);
+      var playerPercent = Util.percentRemaining(position + playerZ, segmentLength);
+      var playerY = Util.interpolate(playerSegment.p1.world.y, playerSegment.p2.world.y, playerPercent);
+      var maxy = height;
+      var x = 0;
+      var dx = - (baseSegment.curve * basePercent);
+      ctx.clearRect(0, 0, width, height);
+      Render.background(ctx, background, width, height, BACKGROUND.SKY);
+      Render.background(ctx, background, width, height, BACKGROUND.HILLS);
+      Render.background(ctx, background, width, height, BACKGROUND.TREES);
+      var n, i, segment, car, sprite, spriteScale, spriteX, spriteY;
+      for (n = 0; n < drawDistance; n++) {
+        segment = segments[(baseSegment.index + n) % segments.length];
+        segment.looped = segment.index < baseSegment.index;
+        segment.fog = Util.exponentialFog(n / drawDistance, fogDensity);
+        segment.clip = maxy;
+        Util.project(segment.p1, (playerX * roadWidth) - x, playerY + cameraHeight, position - (segment.looped ? trackLength : 0), cameraDepth, width, height, roadWidth);
+        Util.project(segment.p2, (playerX * roadWidth) - x - dx, playerY + cameraHeight, position - (segment.looped ? trackLength : 0), cameraDepth, width, height, roadWidth);
+        x = x + dx;
+        dx = dx + segment.curve;
+        if ((segment.p1.camera.z <= cameraDepth) || (segment.p2.screen.y >= segment.p1.screen.y) || (segment.p2.screen.y >= maxy)) continue;
+        Render.segment(ctx, width, lanes, segment.p1.screen.x, segment.p1.screen.y, segment.p1.screen.w, segment.p2.screen.x, segment.p2.screen.y, segment.p2.screen.w, segment.fog, segment.color);
+        maxy = segment.p1.screen.y;
+      }
+      for (n = (drawDistance - 1); n > 0; n--) {
+        segment = segments[(baseSegment.index + n) % segments.length];
+        for (i = 0; i < segment.cars.length; i++) {
+          car = segment.cars[i];
+          sprite = car.sprite;
+          spriteScale = Util.interpolate(segment.p1.screen.scale, segment.p2.screen.scale, car.percent);
+          spriteX = Util.interpolate(segment.p1.screen.x, segment.p2.screen.x, car.percent) + (spriteScale * car.offset * roadWidth * width / 2);
+          spriteY = Util.interpolate(segment.p1.screen.y, segment.p2.screen.y, car.percent);
+          Render.sprite(ctx, width, height, resolution, roadWidth, sprites, car.sprite, spriteScale, spriteX, spriteY, -0.5, -1, segment.clip);
+        }
+        for (i = 0; i < segment.sprites.length; i++) {
+          sprite = segment.sprites[i];
+          spriteScale = segment.p1.screen.scale;
+          spriteX = segment.p1.screen.x + (spriteScale * sprite.offset * roadWidth * width / 2);
+          spriteY = segment.p1.screen.y;
+          Render.sprite(ctx, width, height, resolution, roadWidth, sprites, sprite.source, spriteScale, spriteX, spriteY, (sprite.offset < 0 ? -1 : 0), -1, segment.clip);
+        }
+        if (segment == playerSegment) {
+          Render.player(ctx, width, height, resolution, roadWidth, sprites, speed / maxSpeed, cameraDepth / playerZ, width / 2, (height / 2) - (cameraDepth / playerZ * Util.interpolate(playerSegment.p1.camera.y, playerSegment.p2.camera.y, playerPercent) * height / 2), speed * (keyLeft ? -1 : keyRight ? 1 : 0), playerSegment.p2.world.y - playerSegment.p1.world.y);
+        }
+      }
+    }
+
+    function findSegment(z) {
+      return segments[Math.floor(z / segmentLength) % segments.length];
+    }
+
+    function lastY() { return (segments.length == 0) ? 0 : segments[segments.length - 1].p2.world.y; }
+
+    function addSegment(curve, y) {
+      var n = segments.length;
+      segments.push({
+        index: n,
+        p1: { world: { y: lastY(), z: n * segmentLength }, camera: {}, screen: {} },
+        p2: { world: { y: y, z: (n + 1) * segmentLength }, camera: {}, screen: {} },
+        curve: curve,
+        sprites: [],
+        cars: [],
+        color: Math.floor(n / rumbleLength) % 2 ? COLORS.DARK : COLORS.LIGHT
+      });
+    }
+
+    function addSprite(n, sprite, offset) {
+      if (n >= segments.length) return;
+      segments[n].sprites.push({ source: sprite, offset: offset });
+    }
+
+    function addRoad(enter, hold, leave, curve, y) {
+      var startY = lastY();
+      var endY = startY + (Util.toInt(y, 0) * segmentLength);
+      var n, total = enter + hold + leave;
+      for (n = 0; n < enter; n++) addSegment(Util.easeIn(0, curve, n / enter), Util.easeInOut(startY, endY, n / total));
+      for (n = 0; n < hold; n++) addSegment(curve, Util.easeInOut(startY, endY, (enter + n) / total));
+      for (n = 0; n < leave; n++) addSegment(Util.easeInOut(curve, 0, n / leave), Util.easeInOut(startY, endY, (enter + hold + n) / total));
+    }
+
+    var ROAD = {
+      LENGTH: { NONE: 0, SHORT: 25, MEDIUM: 50, LONG: 100 },
+      HILL: { NONE: 0, LOW: 20, MEDIUM: 40, HIGH: 60 },
+      CURVE: { NONE: 0, EASY: 2, MEDIUM: 4, HARD: 6 }
+    };
+
+    function addStraight(num) {
+      num = num || ROAD.LENGTH.MEDIUM;
+      addRoad(num, num, num, 0, 0);
+    }
+
+    function resetRoad() {
+      segments = [];
+      // Straight track: long straight road
+      for (var n = 0; n < 1500; n++) {
+        segments.push({
+          index: n,
+          p1: { world: { y: 0, z: n * segmentLength }, camera: {}, screen: {} },
+          p2: { world: { y: 0, z: (n + 1) * segmentLength }, camera: {}, screen: {} },
+          curve: 0,
+          sprites: [],
+          cars: [],
+          color: Math.floor(n / rumbleLength) % 2 ? COLORS.DARK : COLORS.LIGHT
+        });
+      }
+      // Fix start line: set to segments 0 and 1 instead of based on playerZ (which is null)
+      segments[0].color = COLORS.START;
+      segments[1].color = COLORS.START;
+      for (var n = 0; n < rumbleLength; n++)
+        segments[segments.length - 1 - n].color = COLORS.FINISH;
+      trackLength = segments.length * segmentLength;
+      resetSprites();
+      resetCars();
+    }
+
+    function resetSprites() {
+      // Minimal sprites for straight track
+      var n, i;
+      for (n = 50; n < segments.length; n += 50) {
+        addSprite(n, Util.randomChoice(SPRITES.BILLBOARDS), Util.randomChoice([1, -1]));
+      }
+      for (n = 20; n < segments.length; n += 20) {
+        addSprite(n, Util.randomChoice(SPRITES.PLANTS), Util.randomChoice([1, -1]) * (2 + Math.random() * 5));
+      }
+    }
+
+    function resetCars() {
+      cars = [];
+      var n, car, segment, offset, z, sprite, speed;
+      for (n = 0; n < totalCars; n++) {
+        offset = Math.random() * Util.randomChoice([-0.8, 0.8]);
+        z = Math.floor(Math.random() * segments.length) * segmentLength;
+        sprite = Util.randomChoice(SPRITES.CARS);
+        speed = maxSpeed / 4 + Math.random() * maxSpeed / (sprite == SPRITES.SEMI ? 4 : 2);
+        car = { offset: offset, z: z, sprite: sprite, speed: speed };
+        segment = findSegment(car.z);
+        segment.cars = segment.cars || [];  // Inisialisasi array cars jika belum ada
+        segment.cars.push(car);
+        cars.push(car);
+      }
+    }
+
+    Game.run({
+      canvas: canvas, render: render, update: update, stats: stats, step: step,
+      images: ["background", "sprites"],
+      keys: [
+        { keys: [KEY.LEFT, KEY.A], mode: 'down', action: function () { if (!gameFinished) keyLeft = true; } },
+        { keys: [KEY.RIGHT, KEY.D], mode: 'down', action: function () { if (!gameFinished) keyRight = true; } },
+        { keys: [KEY.UP, KEY.W], mode: 'down', action: function () { if (!gameFinished) keyFaster = true; } },
+        { keys: [KEY.DOWN, KEY.S], mode: 'down', action: function () { if (!gameFinished) keySlower = true; } },
+        { keys: [KEY.LEFT, KEY.A], mode: 'up', action: function () { keyLeft = false; } },
+        { keys: [KEY.RIGHT, KEY.D], mode: 'up', action: function () { keyRight = false; } },
+        { keys: [KEY.UP, KEY.W], mode: 'up', action: function () { keyFaster = false; } },
+        { keys: [KEY.DOWN, KEY.S], mode: 'up', action: function () { keySlower = false; } }
+      ],
+      ready: function (images) {
+        background = images[0];
+        sprites = images[1];
+        reset();
+        Dom.storage.fast_lap_time = Dom.storage.fast_lap_time || 180;
+        updateHud('fast_lap_time', formatTime(Util.toFloat(Dom.storage.fast_lap_time)));
+      }
+    });
+
+    function reset(options) {
+      options = options || {};
+      canvas.width = width = Util.toInt(options.width, width);
+      canvas.height = height = Util.toInt(options.height, height);
+      lanes = Util.toInt(options.lanes, lanes);
+      roadWidth = Util.toInt(options.roadWidth, roadWidth);
+      cameraHeight = Util.toInt(options.cameraHeight, cameraHeight);
+      drawDistance = Util.toInt(options.drawDistance, drawDistance);
+      fogDensity = Util.toInt(options.fogDensity, fogDensity);
+      fieldOfView = Util.toInt(options.fieldOfView, fieldOfView);
+      segmentLength = Util.toInt(options.segmentLength, segmentLength);
+      rumbleLength = Util.toInt(options.rumbleLength, rumbleLength);
+      cameraDepth = 1 / Math.tan((fieldOfView / 2) * Math.PI / 180);
+      playerZ = (cameraHeight * cameraDepth);
+      resolution = height / 480;
+      refreshTweakUI();
+      if ((segments.length == 0) || (options.segmentLength) || (options.rumbleLength)) resetRoad();
+    }
+
+    Dom.on('resolution', 'change', function (ev) {
+      var w, h, ratio;
+      switch (ev.target.options[ev.target.selectedIndex].value) {
+        case 'fine': w = 1280; h = 960; ratio = w / width; break;
+        case 'high': w = 1024; h = 768; ratio = w / width; break;
+        case 'medium': w = 640; h = 480; ratio = w / width; break;
+        case 'low': w = 480; h = 360; ratio = w / width; break;
+      }
+      reset({ width: w, height: h });
+      Dom.blur(ev);
+    });
+
+    Dom.on('lanes', 'change', function (ev) { Dom.blur(ev); reset({ lanes: ev.target.options[ev.target.selectedIndex].value }); });
+    Dom.on('roadWidth', 'change', function (ev) { Dom.blur(ev); reset({ roadWidth: Util.limit(Util.toInt(ev.target.value), Util.toInt(ev.target.getAttribute('min')), Util.toInt(ev.target.getAttribute('max'))) }); });
+    Dom.on('cameraHeight', 'change', function (ev) { Dom.blur(ev); reset({ cameraHeight: Util.limit(Util.toInt(ev.target.value), Util.toInt(ev.target.getAttribute('min')), Util.toInt(ev.target.getAttribute('max'))) }); });
+    Dom.on('drawDistance', 'change', function (ev) { Dom.blur(ev); reset({ drawDistance: Util.limit(Util.toInt(ev.target.value), Util.toInt(ev.target.getAttribute('min')), Util.toInt(ev.target.getAttribute('max'))) }); });
+    Dom.on('fieldOfView', 'change', function (ev) { Dom.blur(ev); reset({ fieldOfView: Util.limit(Util.toInt(ev.target.value), Util.toInt(ev.target.getAttribute('min')), Util.toInt(ev.target.getAttribute('max'))) }); });
+    Dom.on('fogDensity', 'change', function (ev) { Dom.blur(ev); reset({ fogDensity: Util.limit(Util.toInt(ev.target.value), Util.toInt(ev.target.getAttribute('min')), Util.toInt(ev.target.getAttribute('max'))) }); });
+
+    function refreshTweakUI() {
+      Dom.get('lanes').selectedIndex = lanes - 1;
+      Dom.get('currentRoadWidth').innerHTML = Dom.get('roadWidth').value = roadWidth;
+      Dom.get('currentCameraHeight').innerHTML = Dom.get('cameraHeight').value = cameraHeight;
+      Dom.get('currentDrawDistance').innerHTML = Dom.get('drawDistance').value = drawDistance;
+      Dom.get('currentFieldOfView').innerHTML = Dom.get('fieldOfView').value = fieldOfView;
+      Dom.get('currentFogDensity').innerHTML = Dom.get('fogDensity').value = fogDensity;
+    }
+
+    // Toggle controls visibility
+    Dom.get('controls-toggle').addEventListener('click', function () {
+      var controls = Dom.get('controls');
+      var toggleButton = Dom.get('controls-toggle');
+      controls.classList.toggle('hidden');
+      toggleButton.textContent = controls.classList.contains('hidden') ? 'Show Controls' : 'Hide Controls';
+    });
+
+    // Full-screen canvas resizing - Adjusted for new layout
+    function resizeCanvas() {
+      const screenArea = document.getElementById('screen-area');
+      canvas.width = screenArea.clientWidth;
+      canvas.height = screenArea.clientHeight;
+      width = canvas.width;
+      height = canvas.height;
+      resolution = height / 480;
+      reset({ width: width, height: height });
+    }
+
+    window.addEventListener('resize', () => {
+      resizeCanvas();
+    });
+
+    resizeCanvas();
+
+    // Mobile Controls - Selalu tambahkan event listener, tapi visibilitas dikontrol via CSS/JS
+    const leftBtn = document.getElementById('left');
+    const rightBtn = document.getElementById('right');
+    const accelBtn = document.getElementById('accel');
+    const brakeBtn = document.getElementById('brake');
+
+    // Use handle functions for consistency and haptic
+    leftBtn.addEventListener('touchstart', (e) => handleTouchStart(e, () => { if (!gameFinished) keyLeft = true; }));
+    leftBtn.addEventListener('touchend', (e) => handleTouchEnd(e, () => { keyLeft = false; }));
+
+    rightBtn.addEventListener('touchstart', (e) => handleTouchStart(e, () => { if (!gameFinished) keyRight = true; }));
+    rightBtn.addEventListener('touchend', (e) => handleTouchEnd(e, () => { keyRight = false; }));
+
+    accelBtn.addEventListener('touchstart', (e) => handleTouchStart(e, () => { if (!gameFinished) keyFaster = true; }));
+    accelBtn.addEventListener('touchend', (e) => handleTouchEnd(e, () => { keyFaster = false; }));
+
+    brakeBtn.addEventListener('touchstart', (e) => handleTouchStart(e, () => { if (!gameFinished) keySlower = true; }));
+    brakeBtn.addEventListener('touchend', (e) => handleTouchEnd(e, () => { keySlower = false; }));
+
+
+
+
+  </script>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+      if (!isTouchDevice) {
+        const controlsInfo = document.getElementById('controls-info');
+        if (controlsInfo) {
+          controlsInfo.classList.remove('hidden');
+          setTimeout(() => {
+            controlsInfo.style.opacity = '0';
+            setTimeout(() => {
+              controlsInfo.remove();
+            }, 500); // Wait for fade out to complete
+          }, 3000);
+        }
+      }
+    });
+    // Tambahkan event listener untuk tombol desktop +
+    const deskUp = document.getElementById('desk-up');
+    const deskDown = document.getElementById('desk-down');
+    const deskLeft = document.getElementById('desk-left');
+    const deskRight = document.getElementById('desk-right');
+
+    function handlePress(flagSetter) {
+      return function (e) {
+        e.preventDefault();
+        if (!gameFinished) flagSetter(true);
+      };
+    }
+
+    function handleRelease(flagSetter) {
+      return function (e) {
+        e.preventDefault();
+        flagSetter(false);
+      };
+    }
+
+    deskUp.addEventListener('mousedown', handlePress(() => { keyFaster = true; }));
+    deskUp.addEventListener('mouseup', handleRelease(() => { keyFaster = false; }));
+    deskUp.addEventListener('mouseleave', handleRelease(() => { keyFaster = false; }));
+
+    deskDown.addEventListener('mousedown', handlePress(() => { keySlower = true; }));
+    deskDown.addEventListener('mouseup', handleRelease(() => { keySlower = false; }));
+    deskDown.addEventListener('mouseleave', handleRelease(() => { keySlower = false; }));
+
+    deskLeft.addEventListener('mousedown', handlePress(() => { keyLeft = true; }));
+    deskLeft.addEventListener('mouseup', handleRelease(() => { keyLeft = false; }));
+    deskLeft.addEventListener('mouseleave', handleRelease(() => { keyLeft = false; }));
+
+    deskRight.addEventListener('mousedown', handlePress(() => { keyRight = true; }));
+    deskRight.addEventListener('mouseup', handleRelease(() => { keyRight = false; }));
+    deskRight.addEventListener('mouseleave', handleRelease(() => { keyRight = false; }));
+  </script>
+</body>
+
+</html>

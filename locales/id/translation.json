@@ -1,0 +1,255 @@
+{
+  "login": {
+    "title": "Masuk",
+    "googleMobile": "Google",
+    "googleDesktop": "Lanjut dengan Google",
+    "or": "Atau",
+    "emailPlaceholder": "Email atau username...",
+    "passwordPlaceholder": "Kata sandi...",
+    "signIn": "Masuk",
+    "signingIn": "Sedang masuk...",
+    "noAccount": "Belum punya akun?",
+    "registerHere": "Daftar di sini",
+    "error": "Terjadi kesalahan"
+  },
+  "logoutDialog": {
+    "title": "Keluar",
+    "message": "Apakah Anda yakin ingin keluar?",
+    "cancel": "Batal",
+    "logout": "Keluar",
+    "loading": "Memuat..."
+  },
+  "hostGame": {
+    "title": "BUAT PERMAINAN",
+    "description": "Buat balapan Anda sendiri dan tantang orang lain",
+    "button": "Buat Ruangan"
+  },
+  "joinRace": {
+    "title": "GABUNG BALAPAN",
+    "description": "Masukkan kode untuk bergabung dengan balapan yang ada",
+    "roomCodePlaceholder": "Kode Ruangan",
+    "nicknamePlaceholder": "Nama Panggilan",
+    "joinButton": "GABUNG",
+    "joining": "SEDANG BERGABUNG..."
+  },
+  "alert": {
+    "pwaInstallUnavailable": {
+      "title": "Aplikasi Tidak Tersedia",
+      "message": "Aplikasi sudah terpasang atau belum siap diinstal."
+    },
+    "roomCode": {
+      "title": "Oops! Kode Ruangan!",
+      "message": "Kode ruangan harus 6 huruf."
+    },
+    "nickname": {
+      "title": "Oops! Nama Kosong!",
+      "message": "Nama tidak boleh kosong, ya!"
+    },
+    "both": {
+      "title": "Oops! Input Belum Lengkap!",
+      "message": "Isi Kode Ruangan (6 huruf) dan Nama Panggilan dulu, ya!"
+    },
+    "roomNotFound": {
+      "title": "Oops Ruangan Tidak Ditemukan!",
+      "message": "Kode ruangan Anda salah"
+    },
+    "general": {
+      "title": "Oops Belum Siap Balapan!",
+      "message": "Isi Kode Ruangan (6 huruf) dan Nama Panggilan dulu, ya!"
+    },
+    "duplicate": {
+      "title": "Oops! Nama Panggilan Duplikat!",
+      "message": "Nama panggilan itu sudah digunakan di ruangan ini. Silakan pilih yang lain."
+    },
+    "sessionLocked": {
+      "title": "Tidak Bisa Masuk",
+      "message": "Permainan sudah dimulai atau sudah selesai. Pemain baru tidak bisa bergabung."
+    },
+    "roomFull": {
+      "title": "Ruangan Penuh",
+      "message": "Jumlah pemain maksimal sudah tercapai. Silakan coba ruangan lain."
+    },
+    "closeButton": "Oke!"
+  },
+  "menu": {
+    "howToPlay": "Cara Bermain",
+    "soloTryout": "Coba Sendiri",
+    "tryoutButton": "COBA",
+    "starting": "MEMULAI...",
+    "language": "Bahasa",
+    "fullscreen": "Layar Penuh",
+    "exitFullscreen": "Keluar Layar Penuh",
+    "installApp": "Unduh",
+    "appInstalled": "Terunduh!",
+    "logout": "Keluar"
+  },
+  "howToPlay": {
+    "title": "Panduan Crazy Race",
+    "description": "Balik halaman untuk belajar cara balapan dan menang!",
+    "prev": "Sebelumnya",
+    "next": "Selanjutnya",
+    "gotIt": "Mengerti!",
+    "steps": [
+      {
+        "title": "Buat Permainan",
+        "content": "Klik 'BUAT PERMAINAN' untuk membuat ruangan dan dapatkan kode unik. Bagikan ke teman untuk mulai tantangan!"
+      },
+      {
+        "title": "Gabung Balapan",
+        "content": "Masukkan kode ruangan dan nama panggilan di 'GABUNG BALAPAN'. Klik GABUNG untuk masuk dan pilih warna mobil."
+      },
+      {
+        "title": "Jawab Pertanyaan",
+        "content": "Saat balapan dimulai, pertanyaan kuis muncul. Jawab dengan benar untuk mempercepat mobil Anda di lintasan."
+      },
+      {
+        "title": "Balapan untuk Menang",
+        "content": "Kecepatan menuju garis finish! Pemain yang menjawab paling banyak pertanyaan dengan benar akan menang."
+      },
+      {
+        "title": "Tips Pro",
+        "content": "Pilih nama panggilan keren dan strategikan: jawab cepat atau fokus pada akurasi? Pilihan Anda!"
+      }
+    ]
+  },
+  "mainTitle": {
+    "title1": "CRAZY",
+    "title2": "RACE",
+    "subtitle": "JAWAB • BALAPAN • MENANG"
+  },
+   "settings": {
+    "title": "Pengaturan",
+    "quizTitle": "Kuis Terpilih",
+    "duration": "Durasi",
+    "questions": "Jumlah Soal",
+    "difficulty": "Tingkat Kesulitan",
+    "difficultyOptions": {
+      "Easy": "Mudah",
+      "Medium": "Sedang",
+      "Hard": "Sulit"
+    },
+    "start": "Lanjutkan",
+    "errorQuizNotFound": "Kesalahan: Kuis Tidak Ditemukan",
+    "backButton": "Kembali ke Host",
+    "sound": "Suara",
+    "mute": "Senyap",
+    "unmute": "Bunyikan",
+    "volume": "Volume",
+    "language": "Bahasa",
+    "languages": {
+      "en": "Inggris",
+      "id": "Bahasa Indonesia",
+      "ar": "العربية"
+    },
+    "loadingSession": "Memuat sesi atau sesi tidak ditemukan...",
+    "unknownQuiz": "Kuis Tidak Diketahui",
+    "noDescription": "Tidak ada deskripsi tersedia",
+    "minutes": "Menit",
+    "deleteSession": {
+      "title": "Hapus Sesi?",
+      "description": "Tindakan ini akan menghapus sesi.",
+      "cancelButton": "Batal",
+      "deleteButton": "Hapus",
+      "deletingButton": "Menghapus..."
+    }
+  },
+   "soal": {
+    "title": "Pilih Kuis",
+    "search": "Cari Kuis...",
+    "categories": "Semua Kategori",
+    "previous": "Sebelumnya",
+    "next": "Selanjutnya",
+    "initializing": "MEMUAT...",
+    "noArchives": "TIDAK ADA ARSIP DITEMUKAN",
+    "backToHome": "Kembali ke Beranda",
+    "sound": "Suara",
+    "volume": "Volume",
+    "mute": "Senyap",
+    "unmute": "Bunyikan",
+    "language": "Bahasa",
+    "categoryNames": {
+      "language": "Bahasa",
+      "science": "Sains",
+      "technology": "Teknologi",
+      "math": "Matematika",
+      "general": "Umum",
+      "business": "Bisnis",
+      "sports": "Olahraga",
+      "history": "Sejarah"
+    }
+  },
+    "hostroom": {
+    "title": "Ruang Host",
+    "start": "Mulai",
+    "waiting": "Menunggu pemain bergabung...",
+    "kickconfirmation": "Keluarkan {{name}}?",
+    "cancel": "Batal",
+    "kick": "Keluar",
+    "backToSettings": "Kembali ke Host",
+    "sound": "Suara",
+    "volume": "Volume",
+    "mute": "Senyap",
+    "unmute": "Bunyikan",
+    "language": "Bahasa",
+    "loadingMore": "Memuat lagi...",
+    "playerCount": "{{count}} Pemain"
+  },
+   "lobby": {
+    "title": "Ruang Tunggu",
+    "chooseCar": "PILIH MOBIL",
+    "exit": "Keluar",
+    "keluar": "Keluar Ruangan?",
+    "homepage": "Anda akan kembali ke Beranda.",
+    "cancel": "Batal",
+    "you": "ANDA",
+    "languages": {
+      "en": "Inggris",
+      "id": "Bahasa Indonesia",
+      "ar": "العربية"
+    }
+  },
+  "monitor":{
+    "title": "Progress Balapan",
+    "button": "Akhiri Balapan",
+    "endGame": "Akhiri Permainan",
+    "endGameConfirm": "Apakah Anda yakin ingin mengakhiri permainan?",
+    "cancel": "Batal",
+    "confirm": "Konfirmasi",
+    "noPlayers": "Belum ada pemain dalam permainan..."
+  },
+  "resulthost":{
+    "title": "Peringkat",
+    "notAvailable": "Peringkat tidak tersedia",
+    "noDataFound": "Data tidak ditemukan",
+    "backToHome": "Kembali ke Beranda",
+    "home": "BERANDA",
+    "restart": "MULAI ULANG",
+    "noFinished": "Belum ada pemain yang selesai",
+    "sessionNotFound": "Sesi tidak ditemukan",
+    "failedLoad": "Gagal memuat peringkat",
+    "restartFailed": "Gagal memulai ulang permainan"
+  },
+    "joinresult":{
+    "title": "Hasil",
+    "correct": "Benar",
+    "score": "Skor",
+    "time": "Waktu",
+    "accuracy": "Ketepatan",
+    "statistics": "Statistik",
+    "waitingForHost": "Menunggu host menyelesaikan game..."
+  },
+  "pwa": {
+    "installTitle": "Install Crazy Race!",
+    "install": "Install",
+    "later": "Nanti"
+  },
+  "loading": {
+    "title": "Memuat",
+    "tips": [
+      "Memuat aset...",
+      "Lebih lambat tapi aman",
+      "Kecepatan tergantung internet",
+      "Nikmati balapannya..."
+    ]
+  }
+}

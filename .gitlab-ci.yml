@@ -1,0 +1,25 @@
+stages:
+  - build_and_deploy
+
+deploy_proyek:
+  stage: build_and_deploy
+  tags:
+    - nodejs
+  script:
+    - echo "🚀 Deploy bersih sebagai user www..."
+    - npm ci --prefer-offline
+    - npm run build
+    
+    # 1. Kirim file
+    - rsync -az --delete --exclude '.git' --exclude 'node_modules' ./ root@192.168.1.157:/www/wwwroot/crazyrace/
+    
+    # 2. Perbaiki Permission & Restart via sudo -u www
+    - ssh -o StrictHostKeyChecking=no root@192.168.1.157 "
+        chown -R www:www /www/wwwroot/crazyrace && 
+        cd /www/wwwroot/crazyrace && 
+        sudo -u www npm install --production --no-audit && 
+        sudo -u www pm2 startOrReload ecosystem.config.js --update-env &&
+        echo '✅ Deploy Berhasil via User www!'
+      "
+  only:
+    - main
