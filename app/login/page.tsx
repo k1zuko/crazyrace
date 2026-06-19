@@ -59,7 +59,7 @@ export default function LoginPage() {
     supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}`,
+        redirectTo: `${window.location.origin}/auth/callback`,
       },
     }).catch((err: any) => {
       setIsLoading(false)
@@ -85,8 +85,6 @@ export default function LoginPage() {
       setIsLoading(false)
       return
     }
-
-    router.replace('/');
   }
 
   return (

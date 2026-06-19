@@ -1,6 +1,7 @@
 "use server"
 
 import { createGFSServer } from "@/lib/supabase/gfs-server";
+import { redirect } from "next/navigation";
 
 async function resolveEmail(input: string): Promise<string> {
     if (input.includes("@")) return input.toLowerCase();
@@ -30,7 +31,7 @@ export async function signInAction(identifier: string, password: string) {
 
         if (error) throw error;
 
-        return { success: true };
+        redirect("/");
     } catch (err: any) {
         return { error: err.message || "Terjadi kesalahan, coba lagi!" };
     }
@@ -39,5 +40,5 @@ export async function signInAction(identifier: string, password: string) {
 export async function signOutAction() {
     const supabase = await createGFSServer();
     await supabase.auth.signOut();
-    return { success: true };
+    redirect("/login");
 }
