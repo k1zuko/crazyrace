@@ -30,11 +30,11 @@ export async function signInAction(identifier: string, password: string) {
         })
 
         if (error) throw error;
-
-        redirect("/");
     } catch (err: any) {
         return { error: err.message || "Terjadi kesalahan, coba lagi!" };
     }
+
+    redirect("/");
 }
 
 export async function signOutAction() {

@@ -111,8 +111,6 @@ function LogoutDialog({
 
 export default function HomePage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
   const { t, i18n } = useTranslation();
   const { user, profile, loading: authLoading } = useAuth();
   const { installPrompt, handleInstall: handlePWAInstall } = usePWAInstall();

@@ -36,26 +36,11 @@ export default function LoginPage() {
       ? "https://app.gameforsmart.com/register"
       : "https://gameforsmart2026.vercel.app/auth/register";
 
-  useEffect(() => {
-  // ✅ Tunggu loading selesai dulu, dan pastiin KEDUANYA ada
-  if (loading) return
-  if (!user || !profile) return  // ✅ butuh dua-duanya, bukan salah satu
-
-  const pendingCode = localStorage.getItem("pendingRoomCode")
-  if (pendingCode) {
-    localStorage.setItem("roomCode", pendingCode)
-    router.replace(`/join/${pendingCode}`)
-  } else {
-    router.replace("/")
-  }
-}, [user, profile, loading, router])
-
-  
   // Fungsi: Login dengan Google.
   const handleGoogleLogin = () => {
     setIsLoading(true)
     setError("")
-    
+
     supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
@@ -66,7 +51,7 @@ export default function LoginPage() {
       setError(err.message || "Gagal login dengan Google!")
     })
   }
-  
+
   // Fungsi: Login dengan email/username + password.
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()

@@ -5,13 +5,27 @@ const REFRESH_THRESHOLD = 5 * 60
 const LOCK_COOKIE = '__sb_refresh_lock'
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = new URL(request.url)
+
   let response = NextResponse.next({
     request, // ✅ forward request headers
   })
 
+  const isPublic =
+    pathname === "/login" ||
+    pathname.startsWith("/join/") ||
+    pathname.startsWith("/auth/")
+
+
   // ✅ Cek lock SEBELUM buat supabase client
   const lock = request.cookies.get(LOCK_COOKIE)?.value
-  if (lock) return response // ada proses refresh, skip
+  if (lock) {
+    // ✅ Cek protected meski ada lock
+    if (!isPublic) {
+      const session = lock // kalau ada lock berarti session ada, lanjut
+    }
+    return response
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,6 +43,11 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { session } } = await supabase.auth.getSession()
+
+  // ✅ Guard dulu sebelum apapun
+  if (!isPublic && !session) {
+    return NextResponse.redirect(new URL("/login", request.url))
+  }
 
   if (!session) return response
 

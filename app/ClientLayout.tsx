@@ -60,9 +60,9 @@ export default function ClientLayout({ children }: ClientLayoutProps) {
   return (
     <ClientProviders>
       <AuthProvider>
-        <AuthGate>
+
           {children}
-        </AuthGate>
+
       </AuthProvider>
     </ClientProviders>
   );
