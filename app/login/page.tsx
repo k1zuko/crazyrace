@@ -12,6 +12,7 @@ import { FaHandPointRight } from 'react-icons/fa';
 import { useTranslation } from "react-i18next"
 import Image from "next/image"
 import { createGFSClient } from "@/lib/supabase/gfs-client"
+import { signInAction } from "../actions/auth";
 
 // Background GIF
 const backgroundGifs = [
@@ -35,18 +36,19 @@ export default function LoginPage() {
       ? "https://app.gameforsmart.com/register"
       : "https://gameforsmart2026.vercel.app/auth/register";
 
-  // Check: Jika sudah login, langsung redirect ke home atau auto join jika ada pending room code. 
   useEffect(() => {
-    if ((user || profile) && !loading) {
-      const pendingCode = localStorage.getItem("pendingRoomCode");
-      if (pendingCode) {
-        localStorage.setItem("roomCode", pendingCode);
-        router.replace(`/join/${pendingCode}`);
-      } else {
-        router.replace('/');
-      }
-    }
-  }, [user, profile, loading, router])
+  // ✅ Tunggu loading selesai dulu, dan pastiin KEDUANYA ada
+  if (loading) return
+  if (!user || !profile) return  // ✅ butuh dua-duanya, bukan salah satu
+
+  const pendingCode = localStorage.getItem("pendingRoomCode")
+  if (pendingCode) {
+    localStorage.setItem("roomCode", pendingCode)
+    router.replace(`/join/${pendingCode}`)
+  } else {
+    router.replace("/")
+  }
+}, [user, profile, loading, router])
 
   
   // Fungsi: Login dengan Google.
@@ -65,24 +67,6 @@ export default function LoginPage() {
     })
   }
   
-  // Fungsi: Cek inputan apakah email atau username.
-  const resolveEmail = async (input: string) => {
-    // Kalau input mengandung @ → berarti email
-    if (input.includes("@")) return input.toLowerCase();
-
-    // Kalau username → cari di tabel profiles
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("email")
-      .eq("username", input)
-      .maybeSingle();
-
-    if (error) throw error;
-    if (!data) throw new Error("Username tidak ditemukan!");
-
-    return data.email.toLowerCase();
-  };
-  
   // Fungsi: Login dengan email/username + password.
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -94,21 +78,15 @@ export default function LoginPage() {
     setIsLoading(true)
     setError("")
 
-    try {
-      const resolvedEmail = await resolveEmail(identifier.trim());
+    const result = await signInAction(identifier, password);
 
-      const { error } = await supabase.auth.signInWithPassword({
-        email: resolvedEmail,
-        password,
-      })
-
-      if (error) throw error;
-
-    } catch (err: any) {
-      setError(err.message || "Terjadi kesalahan, coba lagi!")
-    } finally {
+    if (result.error) {
+      setError(result.error)
       setIsLoading(false)
+      return
     }
+
+    router.replace('/');
   }
 
   return (
@@ -244,7 +222,6 @@ export default function LoginPage() {
                     disabled={isLoading}
                   />
                 </div>
-
                 <div className="space-y-1">
                   <Input
                     type="password"
@@ -255,7 +232,6 @@ export default function LoginPage() {
                     disabled={isLoading}
                   />
                 </div>
-
                 <Button
                   type="submit"
                   disabled={isLoading || !identifier.trim() || !password.trim()}

@@ -1,13 +1,18 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-const REFRESH_THRESHOLD = 5 * 60 // 5 menit sebelum token expired
+const REFRESH_THRESHOLD = 5 * 60
 const LOCK_COOKIE = '__sb_refresh_lock'
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next()
+  let response = NextResponse.next({
+    request, // ✅ forward request headers
+  })
 
-  // Supabase server client – tanpa auto-refresh
+  // ✅ Cek lock SEBELUM buat supabase client
+  const lock = request.cookies.get(LOCK_COOKIE)?.value
+  if (lock) return response // ada proses refresh, skip
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -23,40 +28,38 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Hanya membaca session (NO request ke Supabase)
   const { data: { session } } = await supabase.auth.getSession()
 
-  if (session) {
-    const expiresAt = session.expires_at // epoch detik
-    const now = Math.floor(Date.now() / 1000)
-    const shouldRefresh = expiresAt && (expiresAt - now < REFRESH_THRESHOLD)
+  if (!session) return response
 
-    if (shouldRefresh) {
-      const lock = request.cookies.get(LOCK_COOKIE)?.value
+  const now = Math.floor(Date.now() / 1000)
+  const expiresAt = session.expires_at ?? 0
+  const shouldRefresh = expiresAt - now < REFRESH_THRESHOLD
 
-      if (!lock) {
-        // Pasang lock cookie lintas subdomain, httpOnly, 10 detik
-        response.cookies.set(LOCK_COOKIE, '1', {
-          httpOnly: true,
-          secure: true,
-          sameSite: 'lax',
-          domain: '.gameforsmart.com',
-          path: '/',
-          maxAge: 10,
-        })
+  if (!shouldRefresh) return response
 
-        try {
-          // Hanya satu kali request ke /token
-          await supabase.auth.refreshSession()
-          // Refresh berhasil → hapus lock lebih awal
-          response.cookies.delete({ name: LOCK_COOKIE, domain: '.gameforsmart.com', path: '/' })
-        } catch (err) {
-          console.error('Middleware refresh error:', err)
-          // Biarkan lock expire sendiri
-        }
-      }
-      // else: ada proses refresh lain, tunggu saja
-    }
+  // ✅ Set lock SEBELUM refresh
+  const host = request.headers.get('host') ?? ''
+  const isProd = host.endsWith('gameforsmart.com')
+
+  response.cookies.set(LOCK_COOKIE, '1', {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: 'lax',
+    domain: isProd ? '.gameforsmart.com' : undefined,
+    path: '/',
+    maxAge: 10,
+  })
+
+  try {
+    const { data, error } = await supabase.auth.refreshSession()
+    if (error || !data.session) throw error
+
+    // ✅ Hapus lock setelah berhasil
+    response.cookies.delete(LOCK_COOKIE)
+  } catch (err) {
+    console.error('[Middleware] Refresh error:', err)
+    // lock expire sendiri dalam 10 detik
   }
 
   return response
@@ -64,7 +67,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Hindari static files & assets
     '/((?!_next/static|_next/image|favicon.ico|assets/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }

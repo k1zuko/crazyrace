@@ -24,7 +24,7 @@ export async function createGFSServer() {
                             ...options,
                             secure: isSecureContext,
                             sameSite: "lax" as const,
-                            ...(isProdDomain && { domain: ".gameforsmart.com" })
+                            httpOnly: isSecureContext,
                         };
 
                         cookieStore.set(name, value, cookieOptions);
